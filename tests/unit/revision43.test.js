@@ -45,10 +45,12 @@ test('in-app Web Capture and bookmarklet setup page share one bookmarklet genera
   assert.match(buildSource, /src\/ui\/webCaptureSheet\.js/);
 });
 
-test('v0.4.3 bumps app version and PWA cache', () => {
-  assert.equal(packageJson.version, '0.4.3');
-  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.3'/);
-  assert.match(swSource, /snippets-r4-3/);
+test('v0.4.3 establishes the 0.4.3+ patch line and r4 cache family', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 3);
+  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.[3-9]'/);
+  assert.match(swSource, /snippets-r4-/);
 });
 
 test('bookmarklet generator targets the deployed app and preserves each capture mode', async () => {

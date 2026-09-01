@@ -17,7 +17,7 @@ export function createBookmarkletCode(mode, appUrl) {
   const textExpression = mode === 'selection'
     ? 'String(getSelection())'
     : mode === 'page'
-      ? 'document.body.innerText'
+      ? `(()=>{const q='article,[itemprop=\"articleBody\"],main,[role=\"main\"]';const c=[...document.querySelectorAll(q)].filter(e=>(e.innerText||'').trim().length>200).sort((a,b)=>(b.innerText||'').length-(a.innerText||'').length)[0]||document.body;const x=c.cloneNode(true);x.querySelectorAll('nav,footer,aside,script,style,noscript,form,button,svg,canvas,[aria-hidden=\"true\"]').forEach(e=>e.remove());Object.assign(x.style,{position:'fixed',left:'-100000px',top:'0',width:'800px',opacity:'0',pointerEvents:'none'});document.body.appendChild(x);const t=(x.innerText||x.textContent||'').replace(/\n{3,}/g,'\n\n').trim();x.remove();return t||document.body.innerText})()`
       : "''";
 
   return `javascript:(()=>{const n=(crypto.randomUUID?.()||Date.now()+'-'+Math.random());const w=open(${capturePrefix}+encodeURIComponent(n),'_blank');const p={type:'snippets-capture',nonce:n,mode:'${mode}',title:document.title,url:location.href,text:${textExpression}};let i=0;const t=setInterval(()=>{if(!w||w.closed||i++>120){clearInterval(t);return}w.postMessage(p,${targetOrigin})},500)})()`;

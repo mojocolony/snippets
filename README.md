@@ -82,3 +82,9 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Desktop users can drag **Save Link**, **Save Selection**, or **Save Page Text** from the in-app Web Capture sheet to the bookmarks bar.
 - iPhone/iPad users get a concise mobile note and a direct **Open Web Capture Setup** link instead of unusable drag controls.
 - The in-app panel and `bookmarklets.html` now share the same bookmarklet generator so capture behavior cannot drift between the two surfaces.
+
+## Revision 4.4 — v0.4.4
+
+- Save Page Text now prefers semantic article/main content, removes common page chrome, and falls back to full body text.
+- Cmd/Ctrl-B and Cmd/Ctrl-I wrap or unwrap selected text with Markdown bold/italic markers.
+- Inline code, fenced code blocks, and javascript bookmarklet source are excluded from automatic URL linkification.

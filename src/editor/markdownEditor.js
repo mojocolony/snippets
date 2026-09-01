@@ -12,6 +12,64 @@ function selectionOffset(element) {
   return range.toString().length;
 }
 
+function selectionOffsets(element) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return { start: 0, end: 0 };
+  const active = selection.getRangeAt(0);
+  if (!element.contains(active.startContainer) || !element.contains(active.endContainer)) return { start: 0, end: 0 };
+  const startRange = document.createRange();
+  startRange.selectNodeContents(element);
+  startRange.setEnd(active.startContainer, active.startOffset);
+  const endRange = document.createRange();
+  endRange.selectNodeContents(element);
+  endRange.setEnd(active.endContainer, active.endOffset);
+  const a = startRange.toString().length;
+  const b = endRange.toString().length;
+  return { start: Math.min(a, b), end: Math.max(a, b) };
+}
+
+function toggleInlineMarker(text, start, end, marker) {
+  const source = String(text);
+  if (end <= start) return { text: source, start, end };
+  const markerLength = marker.length;
+  const selected = source.slice(start, end);
+  if (selected.startsWith(marker) && selected.endsWith(marker) && selected.length > markerLength * 2) {
+    const inner = selected.slice(markerLength, -markerLength);
+    return {
+      text: source.slice(0, start) + inner + source.slice(end),
+      start,
+      end: start + inner.length
+    };
+  }
+  if (source.slice(Math.max(0, start - markerLength), start) === marker && source.slice(end, end + markerLength) === marker) {
+    return {
+      text: source.slice(0, start - markerLength) + selected + source.slice(end + markerLength),
+      start: start - markerLength,
+      end: end - markerLength
+    };
+  }
+  return {
+    text: source.slice(0, start) + marker + selected + marker + source.slice(end),
+    start: start + markerLength,
+    end: end + markerLength
+  };
+}
+
+function isFencedCodeLine(source, lineIndex) {
+  const lines = String(source).split('\n');
+  let inFence = false;
+  for (let i = 0; i <= lineIndex && i < lines.length; i += 1) {
+    const fence = /^\s*```/.test(lines[i]);
+    if (fence) {
+      if (i === lineIndex) return true;
+      inFence = !inFence;
+      continue;
+    }
+    if (i === lineIndex) return inFence;
+  }
+  return false;
+}
+
 function setCaret(element, offset) {
   element.focus();
   requestAnimationFrame(() => {
@@ -90,13 +148,14 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     host.style.setProperty('--editor-size', `${fontSize}px`);
   }
 
-  function decorateText(span, display) {
-    span.innerHTML = renderInlineMarkdown(display.text ?? '');
+  function decorateText(span, display, { autoLink = true } = {}) {
+    span.innerHTML = renderInlineMarkdown(display.text ?? '', { autoLink });
     if (!span.textContent) span.innerHTML = '<br>';
   }
 
   function makeLine(line, index) {
-    const display = splitLineForDisplay(line);
+    const codeLine = isFencedCodeLine(doc, index);
+    const display = codeLine ? { type: 'code', text: line } : splitLineForDisplay(line);
     const row = document.createElement('div');
     row.className = `editor-line editor-line--${display.type}`;
     row.dataset.lineIndex = String(index);
@@ -164,7 +223,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     span.dataset.lineIndex = String(index);
     if (display.type === 'todo' && display.checked) span.classList.add('is-complete');
     if (display.type === 'heading') span.classList.add(`heading-${Math.min(display.level, 3)}`);
-    decorateText(span, display);
+    decorateText(span, display, { autoLink: !codeLine });
 
     span.addEventListener('pointerdown', event => {
       const link = event.target.closest?.('a');
@@ -210,6 +269,33 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
         event.preventDefault();
         event.stopPropagation();
         selectWholeDocument();
+        return;
+      }
+      const formatKey = event.key.toLowerCase();
+      const formatModifier = (event.metaKey || event.ctrlKey) && !event.altKey;
+      if (formatModifier && !event.shiftKey && (formatKey === 'b' || formatKey === 'i')) {
+        event.preventDefault();
+        event.stopPropagation();
+        const { start, end } = selectionOffsets(span);
+        if (end <= start) return;
+        const marker = formatKey === 'b' ? '**' : '_';
+        const formatted = toggleInlineMarker(span.textContent, start, end, marker);
+        const result = applyEditorLineInput(doc, index, formatted.text, formatted.end);
+        doc = result.doc;
+        render(index, formatted.end);
+        notify();
+        requestAnimationFrame(() => {
+          const target = host.querySelector(`.editor-line-text[data-line-index="${index}"]`);
+          if (!target) return;
+          const node = target.firstChild || target;
+          if (node.nodeType !== Node.TEXT_NODE) return;
+          const range = document.createRange();
+          range.setStart(node, Math.min(formatted.start, node.textContent.length));
+          range.setEnd(node, Math.min(formatted.end, node.textContent.length));
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+        });
         return;
       }
       if (!event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey && /^Arrow(Left|Right|Up|Down)$/.test(event.key)) {

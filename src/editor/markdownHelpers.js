@@ -14,23 +14,34 @@ function escapeHtml(value = '') {
     .replaceAll("'", '&#039;');
 }
 
-export function renderInlineMarkdown(source = '') {
+export function renderInlineMarkdown(source = '', { autoLink = true } = {}) {
   const protectedLinks = [];
-  let html = escapeHtml(source).replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_match, label, href) => {
-    const token = `%%SNIPPETSLINK${protectedLinks.length}%%`;
-    protectedLinks.push(`<a href="${href}" target="_blank" rel="noopener noreferrer" tabindex="-1">${label}</a>`);
-    return token;
-  });
+  const protectedCode = [];
+  const original = String(source);
+  const looksLikeCodeSource = /^\s*(?:javascript:|data:text\/html)/i.test(original);
+
+  let html = escapeHtml(original)
+    .replace(/`([^`]+)`/g, (_match, code) => {
+      const token = `%%SNIPPETSCODE${protectedCode.length}%%`;
+      protectedCode.push(`<code>${code}</code>`);
+      return token;
+    })
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_match, label, href) => {
+      const token = `%%SNIPPETSLINK${protectedLinks.length}%%`;
+      protectedLinks.push(`<a href="${href}" target="_blank" rel="noopener noreferrer" tabindex="-1">${label}</a>`);
+      return token;
+    });
 
   html = html
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/__([^_]+)__/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
     .replace(/(^|[^_])_([^_]+)_/g, '$1<em>$2</em>')
     .replace(/~~([^~]+)~~/g, '<s>$1</s>')
-    .replace(/==([^=]+)==/g, '<mark>$1</mark>')
-    .replace(/(^|[^@\w])((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi, (_match, prefix, match) => {
+    .replace(/==([^=]+)==/g, '<mark>$1</mark>');
+
+  if (autoLink && !looksLikeCodeSource) {
+    html = html.replace(/(^|[^@\w])((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)/g, (_match, prefix, match) => {
       let url = match;
       let trailing = '';
       while (/[.,!?;:)\]]$/.test(url)) {
@@ -40,9 +51,13 @@ export function renderInlineMarkdown(source = '') {
       const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
       return `${prefix}<a href="${href}" target="_blank" rel="noopener noreferrer" tabindex="-1">${url}</a>${trailing}`;
     });
+  }
 
   protectedLinks.forEach((link, index) => {
     html = html.replace(`%%SNIPPETSLINK${index}%%`, link);
+  });
+  protectedCode.forEach((code, index) => {
+    html = html.replace(`%%SNIPPETSCODE${index}%%`, code);
   });
   return html;
 }
