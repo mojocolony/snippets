@@ -451,7 +451,9 @@ export async function createApp(root, { onSignOut = null } = {}) {
 
   const initialSnippets = await listSnippets({ scope: 'all' });
   const target = chooseLaunchTarget({ snippets: initialSnippets, returnWindow: state.preferences.returnWindow });
-  await showEditor(target.type === 'snippet' ? target.id : null);
+  if (target.type === 'snippet') await showEditor(target.id);
+  else if (target.type === 'inbox') await showLibrary('inbox');
+  else await showEditor(null);
 
   const flushOnHide = () => {
     if (state.screen === 'editor') flushSave();

@@ -18,9 +18,9 @@ test('recent snippet reopens inside configured return window', () => {
   );
 });
 
-test('old snippet does not reopen outside configured return window', () => {
+test('old snippet returns to Inbox outside configured return window', () => {
   assert.deepEqual(
     chooseLaunchTarget({ snippets: [snippet('a', 1)], now: 100_000, returnWindow: '60s' }),
-    { type: 'blank' }
+    { type: 'inbox' }
   );
 });

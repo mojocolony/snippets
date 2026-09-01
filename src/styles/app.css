@@ -208,7 +208,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   transition: opacity 100ms ease, transform 100ms ease;
 }
 .editor-line--todo {
-  grid-template-columns: 20px 25px minmax(0, 1fr);
+  grid-template-columns: 25px 25px minmax(0, 1fr);
   column-gap: 5px;
 }
 .editor-line--bullet {
@@ -289,7 +289,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   transform: rotate(-45deg) translateY(-1px);
 }
 .todo-handle {
-  width: 20px;
+  width: 25px;
   height: 1.66em;
   margin: 0;
   padding: 0;
@@ -298,13 +298,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   color: var(--faint);
   display: grid;
   place-items: center;
-  font-size: 14px;
-  line-height: 1;
   opacity: .34;
   cursor: grab;
   touch-action: none;
 }
-.todo-handle::before { content: "≡"; }
+.todo-handle-icon { width: 17px; height: 17px; display: block; }
 .editor-line--todo:hover .todo-handle, .todo-handle:focus-visible { opacity: .85; }
 
 .control-strip {
@@ -546,6 +544,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .size-row button { height: 38px; border: 1px solid var(--hairline); border-radius: var(--pill); background: var(--surface); color: var(--text); }
 .size-value { text-align: center; font-size: 12px; color: var(--muted); }
 .settings-select { width: 100%; height: 42px; border: 1px solid var(--hairline); border-radius: 10px; padding: 0 10px; background: var(--surface); color: var(--text); }
+.app-version { padding: 18px 8px 4px; color: var(--faint); font-size: 10px; text-align: center; }
 
 .trash-header { display: flex; align-items: center; gap: 8px; padding: 4px 0 18px; }
 .trash-title { font-size: 15px; font-weight: 600; }

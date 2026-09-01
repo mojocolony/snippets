@@ -56,7 +56,7 @@ export async function listSnippets({ scope = 'inbox', tag = null, query = '' } =
     if (tag && !item.tags.includes(tag)) return false;
     if (q && !`${item.content}\n${item.tags.join(' ')}`.toLowerCase().includes(q)) return false;
     return true;
-  }).sort((a, b) => b.updatedAt - a.updatedAt);
+  }).sort((a, b) => Number(b.starred) - Number(a.starred) || b.updatedAt - a.updatedAt);
 }
 
 export async function setPinnedSnippet(id = null) {

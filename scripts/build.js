@@ -14,6 +14,7 @@ await cp(path.join(root, 'assets'), path.join(dist, 'assets'), { recursive: true
 
 const cssFiles = ['src/styles/tokens.css', 'src/styles/app.css', 'src/styles/responsive.css'];
 const jsFiles = [
+  'src/version.js',
   'src/domain/snippetText.js',
   'src/domain/launchPolicy.js',
   'src/domain/trashPolicy.js',

@@ -1,4 +1,5 @@
 import { createSheet } from './sheet.js';
+import { APP_VERSION } from '../version.js';
 
 export const EDITOR_FONTS = Object.freeze({
   'ia-writer-duo': {
@@ -13,12 +14,12 @@ export const EDITOR_FONTS = Object.freeze({
 });
 
 const RETURN_OPTIONS = [
-  ['fresh', 'Always start fresh'],
+  ['fresh', 'Immediately'],
   ['30s', '30 seconds'],
   ['60s', '1 minute'],
   ['5m', '5 minutes'],
   ['15m', '15 minutes'],
-  ['always', 'Always return to last']
+  ['always', 'Never']
 ];
 
 export function openAppearanceSheet({ preferences, onChange = async () => preferences, onClose = () => {} } = {}) {
@@ -85,10 +86,10 @@ export function openAppearanceSheet({ preferences, onChange = async () => prefer
 
   const returnLabel = document.createElement('div');
   returnLabel.className = 'sheet-section-label';
-  returnLabel.textContent = 'Return to last snippet';
+  returnLabel.textContent = 'Time to return to Inbox';
   const select = document.createElement('select');
   select.className = 'settings-select';
-  select.setAttribute('aria-label', 'Return to last snippet');
+  select.setAttribute('aria-label', 'Time to return to Inbox');
   for (const [value, label] of RETURN_OPTIONS) {
     const option = document.createElement('option');
     option.value = value; option.textContent = label;
@@ -96,7 +97,11 @@ export function openAppearanceSheet({ preferences, onChange = async () => prefer
   }
   select.addEventListener('change', async () => { prefs = await onChange('returnWindow', select.value); openState(); });
 
-  sheet.body.append(themeLabel, theme, fontLabel, fontGrid, sizeLabel, sizeRow, returnLabel, select);
+  const version = document.createElement('div');
+  version.className = 'app-version';
+  version.textContent = `Snippets v${APP_VERSION}`;
+
+  sheet.body.append(themeLabel, theme, fontLabel, fontGrid, sizeLabel, sizeRow, returnLabel, select, version);
 
   function openState() {
     [...theme.children].forEach((button, index) => {

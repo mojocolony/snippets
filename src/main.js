@@ -13,6 +13,7 @@ let currentUserId = null;
 let openingUserId = null;
 let captureConsumed = false;
 let pendingCapture = parseCaptureUrl(window.location.href);
+let authNotice = '';
 const captureSession = new URL(window.location.href).searchParams.get('captureSession');
 
 function appBaseUrl() {
@@ -52,12 +53,14 @@ async function cleanupAuthenticatedApp() {
   currentUserId = null;
 }
 
-function showAuth() {
+function showAuth(message = authNotice) {
+  authNotice = '';
   renderAuthView(root, {
+    initialError: message,
     onRequestCode: async email => {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: appBaseUrl() }
+        options: { emailRedirectTo: appBaseUrl(), shouldCreateUser: false }
       });
       if (error) throw error;
     },
@@ -74,6 +77,14 @@ async function openAuthenticated(session) {
   if (!user || currentUserId === user.id || openingUserId === user.id) return;
   openingUserId = user.id;
   try {
+    const { data: hasAccess, error: accessError } = await supabase.rpc('snippets_has_access');
+    if (accessError) throw accessError;
+    if (!hasAccess) {
+      authNotice = 'This account is not authorized for Snippets.';
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      return;
+    }
     await cleanupAuthenticatedApp();
     const cache = await prepareCacheForUser(user.id);
     try {

@@ -106,6 +106,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       handle.type = 'button';
       handle.className = 'todo-handle';
       handle.setAttribute('aria-label', 'Reorder todo');
+      handle.innerHTML = '<svg class="todo-handle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>';
       handle.addEventListener('pointerdown', event => {
         event.preventDefault();
         dragState = { from: index, to: index, handle };
@@ -196,10 +197,10 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     span.addEventListener('blur', () => {
       span.classList.remove('is-editing');
       if (destroyed) return;
-      // Wait until focus settles. Re-rendering during blur would replace the line
-      // the user is trying to tap next and make line-to-line editing unreliable.
+      // Only the active line shows raw Markdown. Once this line loses focus,
+      // re-render just this row so moving to another line is not disrupted.
       setTimeout(() => {
-        if (!destroyed && !host.contains(document.activeElement)) render();
+        if (!destroyed && span.isConnected && document.activeElement !== span) renderLine(index);
       }, 0);
     });
 
@@ -263,6 +264,15 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
 
     row.append(span);
     return row;
+  }
+
+
+  function renderLine(index) {
+    if (destroyed) return;
+    const existing = host.querySelector(`.editor-line[data-line-index="${index}"]`);
+    if (!existing) return;
+    const line = doc.split('\n')[index] ?? '';
+    existing.replaceWith(makeLine(line, index));
   }
 
   function render(focusIndex = null, caretOffset = 0) {

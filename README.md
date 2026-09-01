@@ -7,7 +7,7 @@ Snippets is a personal, capture-first Markdown app: immediate writing, Inbox / S
 - **Frontend:** static vanilla HTML/CSS/JavaScript, designed for GitHub Pages.
 - **Production URL target:** `https://mojocolony.github.io/snippets/`
 - **Backend:** the existing Supabase project named **Ticking** (`appesztafatypbxzdunr`), shared with other personal apps.
-- **Snippets isolation:** Snippets uses only `snippets_items`, `snippets_tags`, and `snippets_preferences`. Each table has RLS policies requiring `auth.uid() = user_id`. No Snippets code reads or writes Ticking, Fetch, Podstream, or other application tables.
+- **Snippets isolation:** Snippets uses `snippets_items`, `snippets_tags`, `snippets_preferences`, and the access-control table `snippets_access`. Content tables require both `auth.uid() = user_id` and membership in the Snippets allowlist. No Snippets code reads or writes Ticking, Fetch, Podstream, or other application tables.
 - **Auth session isolation:** Supabase Auth uses the browser storage key `snippets-auth`, so signing out of Snippets does not intentionally reuse another app's local session token even though the Supabase Auth user directory is shared.
 - **Local cache:** IndexedDB database `snippets`; writes happen locally first and are queued to Supabase.
 
@@ -15,7 +15,7 @@ The publishable Supabase browser key in `src/cloud/supabaseClient.js` is intenti
 
 ## Authentication
 
-Snippets requests passwordless email authentication with Supabase. The production login uses Supabase passwordless email. With the shared project's current default mailer, the primary flow is a magic link; the app can also verify a six-digit OTP if the shared Magic Link/OTP template is later configured to include `{{ .Token }}`. Authentication errors are surfaced in the login panel rather than failing silently.
+Snippets requests passwordless email authentication with Supabase and sets `shouldCreateUser: false`. A signed-in Supabase user must also be present in `snippets_access` before the app opens. The production login uses Supabase passwordless email. With the shared project's current default mailer, the primary flow is a magic link; the app can also verify a six-digit OTP if the shared Magic Link/OTP template is later configured to include `{{ .Token }}`. Authentication errors are surfaced in the login panel rather than failing silently.
 
 ## Development
 
@@ -49,3 +49,14 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Archiving from Inbox immediately advances away from the archived item.
 - Tag assignment rows are more compact.
 - Passwordless-auth request errors are shown in the UI, including failures encountered in an installed iPhone PWA.
+
+
+## Revision 3 — v0.3.0
+
+- Bare domains such as `cnn.com` and `cnn.com/world` become clickable links without turning email domains into links.
+- Only the active editor line shows raw Markdown; leaving a line immediately restores rendered formatting.
+- Todo reordering uses a Lucide-style SVG grip aligned in the same line box as the checkbox.
+- Starred snippets sort to the top of Inbox and Archive, then by most recently modified.
+- The launch preference is labeled **Time to return to Inbox**; after the selected interval, Snippets opens Inbox unless a snippet is pinned.
+- Snippets authentication no longer creates new Supabase users and requires membership in the Snippets-specific allowlist.
+- The app version is visible in Settings as **Snippets v0.3.0**.

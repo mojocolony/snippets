@@ -16,8 +16,8 @@ export function chooseLaunchTarget({ snippets = [], now = Date.now(), returnWind
   if (!latest) return { type: 'blank' };
 
   const windowMs = RETURN_WINDOWS[returnWindow] ?? RETURN_WINDOWS['60s'];
-  if (windowMs === 0) return { type: 'blank' };
+  if (windowMs === 0) return { type: 'inbox' };
   return now - latest.updatedAt <= windowMs
     ? { type: 'snippet', id: latest.id }
-    : { type: 'blank' };
+    : { type: 'inbox' };
 }

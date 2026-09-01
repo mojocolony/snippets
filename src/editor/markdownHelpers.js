@@ -30,14 +30,15 @@ export function renderInlineMarkdown(source = '') {
     .replace(/(^|[^_])_([^_]+)_/g, '$1<em>$2</em>')
     .replace(/~~([^~]+)~~/g, '<s>$1</s>')
     .replace(/==([^=]+)==/g, '<mark>$1</mark>')
-    .replace(/https?:\/\/[^\s<]+/g, match => {
+    .replace(/(^|[^@\w])((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi, (_match, prefix, match) => {
       let url = match;
       let trailing = '';
       while (/[.,!?;:)\]]$/.test(url)) {
         trailing = url.slice(-1) + trailing;
         url = url.slice(0, -1);
       }
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer" tabindex="-1">${url}</a>${trailing}`;
+      const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+      return `${prefix}<a href="${href}" target="_blank" rel="noopener noreferrer" tabindex="-1">${url}</a>${trailing}`;
     });
 
   protectedLinks.forEach((link, index) => {

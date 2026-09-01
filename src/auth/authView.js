@@ -7,11 +7,11 @@ function element(tag, className, text = '') {
   return node;
 }
 
-export function renderAuthView(root, { onRequestCode, onVerify } = {}) {
+export function renderAuthView(root, { onRequestCode, onVerify, initialError = '' } = {}) {
   let email = '';
   let mode = 'email';
   let busy = false;
-  let errorMessage = '';
+  let errorMessage = initialError;
 
   function render() {
     root.replaceChildren();
