@@ -15,7 +15,7 @@ The publishable Supabase browser key in `src/cloud/supabaseClient.js` is intenti
 
 ## Authentication
 
-Snippets requests passwordless email authentication with Supabase. The UI supports a six-digit email OTP (`verifyOtp`) and also tolerates the existing Supabase magic-link flow. The shared project's email template is global across all apps; to make the email visibly contain a six-digit code, its Magic Link/OTP template must include `{{ .Token }}`. Do not remove an existing confirmation link from the shared template without checking the other apps first.
+Snippets requests passwordless email authentication with Supabase. The production login uses Supabase passwordless email. With the shared project's current default mailer, the primary flow is a magic link; the app can also verify a six-digit OTP if the shared Magic Link/OTP template is later configured to include `{{ .Token }}`. Authentication errors are surfaced in the login panel rather than failing silently.
 
 ## Development
 
@@ -38,3 +38,14 @@ After deployment, open `bookmarklets.html` and drag one or more bookmarklets to 
 ## GitHub Pages deployment
 
 Create a public repository named `snippets` under `mojocolony`, place these repository files at its root, and enable GitHub Pages from the default branch/root. The app uses only relative asset paths and a relative PWA scope, so it is compatible with the `/snippets/` project path.
+
+
+## Revision 2
+
+- Bare `http://` / `https://` URLs render as clickable links when the line is not actively being edited.
+- Cmd/Ctrl-A selects the whole snippet, and arrow keys move between editor lines.
+- Reordering todos no longer forces the moved item into raw Markdown display.
+- Todo drag handles and checkboxes share the editor line-box geometry.
+- Archiving from Inbox immediately advances away from the archived item.
+- Tag assignment rows are more compact.
+- Passwordless-auth request errors are shown in the UI, including failures encountered in an installed iPhone PWA.

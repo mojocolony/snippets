@@ -15,6 +15,7 @@ import { openMoreMenu } from './ui/moreMenu.js';
 import { showToast } from './ui/toast.js';
 import { openShortcutSheet } from './ui/shortcutSheet.js';
 import { DEFAULT_SHORTCUTS, shortcutMatchesEvent } from './domain/keyboardShortcuts.js';
+import { chooseNextVisibleSnippet } from './domain/postArchive.js';
 
 function resolveTheme(mode) {
   if (mode === 'dark' || mode === 'light') return mode;
@@ -365,8 +366,22 @@ export async function createApp(root, { onSignOut = null } = {}) {
           state.currentSnippet = await getSnippet(state.currentSnippet.id);
           state.editorView?.updateMeta(state.currentSnippet);
         } else if (id === 'archive') {
-          state.currentSnippet = await updateSnippet(state.currentSnippet.id, { archived: !state.currentSnippet.archived });
+          const currentId = state.currentSnippet.id;
+          const wasArchived = Boolean(state.currentSnippet.archived);
+          const inboxBefore = !wasArchived && state.libraryScope === 'inbox'
+            ? await listSnippets({ scope: 'inbox' })
+            : [];
+          state.currentSnippet = await updateSnippet(currentId, { archived: !wasArchived });
           state.editorView?.updateMeta(state.currentSnippet);
+          if (!wasArchived && state.libraryScope === 'inbox') {
+            if (isDesktop()) {
+              const nextId = chooseNextVisibleSnippet(inboxBefore, currentId);
+              await showEditor(nextId);
+            } else {
+              await showLibrary('inbox');
+            }
+            return;
+          }
           await refreshDesktopSidebar();
         } else if (id === 'copy') {
           await copyText(toPlainText(state.currentContent));

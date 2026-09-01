@@ -86,12 +86,15 @@ export function renderAuthView(root, { onRequestCode, onVerify } = {}) {
         await onVerify?.(email, token);
       } catch (error) {
         errorMessage = error?.message || 'Could not sign in.';
+        busy = false;
+        render();
+        return;
       } finally {
         busy = false;
         if (root.contains(button)) {
           button.disabled = false;
           button.textContent = mode === 'email' ? 'Continue' : 'Sign in';
-        } else if (errorMessage) render();
+        }
       }
     });
 

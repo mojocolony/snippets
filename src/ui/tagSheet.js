@@ -21,6 +21,7 @@ export function openTagSheet({
   sheet.body.append(input);
 
   const list = document.createElement('div');
+  list.className = 'tag-sheet-list';
   sheet.body.append(list);
   let currentAssigned = [...assigned];
   let query = '';

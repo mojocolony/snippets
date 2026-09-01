@@ -15,7 +15,13 @@ function escapeHtml(value = '') {
 }
 
 export function renderInlineMarkdown(source = '') {
-  let html = escapeHtml(source);
+  const protectedLinks = [];
+  let html = escapeHtml(source).replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_match, label, href) => {
+    const token = `%%SNIPPETSLINK${protectedLinks.length}%%`;
+    protectedLinks.push(`<a href="${href}" target="_blank" rel="noopener noreferrer" tabindex="-1">${label}</a>`);
+    return token;
+  });
+
   html = html
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
@@ -24,7 +30,19 @@ export function renderInlineMarkdown(source = '') {
     .replace(/(^|[^_])_([^_]+)_/g, '$1<em>$2</em>')
     .replace(/~~([^~]+)~~/g, '<s>$1</s>')
     .replace(/==([^=]+)==/g, '<mark>$1</mark>')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" tabindex="-1">$1</a>');
+    .replace(/https?:\/\/[^\s<]+/g, match => {
+      let url = match;
+      let trailing = '';
+      while (/[.,!?;:)\]]$/.test(url)) {
+        trailing = url.slice(-1) + trailing;
+        url = url.slice(0, -1);
+      }
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" tabindex="-1">${url}</a>${trailing}`;
+    });
+
+  protectedLinks.forEach((link, index) => {
+    html = html.replace(`%%SNIPPETSLINK${index}%%`, link);
+  });
   return html;
 }
 

@@ -252,17 +252,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: var(--highlight);
   color: inherit;
 }
-.editor-line-text a { color: inherit; text-decoration-color: var(--faint); text-underline-offset: 3px; pointer-events: none; }
+.editor-line-text a { color: inherit; text-decoration-color: var(--faint); text-underline-offset: 3px; pointer-events: auto; cursor: pointer; }
 .editor-line-text.is-complete { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .editor-line-text.heading-1 { font-size: 1.42em; line-height: 1.4; font-weight: 650; margin: .24em 0 .1em; }
 .editor-line-text.heading-2 { font-size: 1.22em; line-height: 1.45; font-weight: 650; margin: .18em 0 .08em; }
 .editor-line-text.heading-3 { font-size: 1.08em; line-height: 1.5; font-weight: 650; }
 .editor-line-text.is-editing { color: var(--text); }
 .bullet-marker { color: var(--faint); text-align: center; user-select: none; }
+.bullet-marker::before { content: "•"; }
 .editor-line--bullet:focus-within .bullet-marker { visibility: hidden; }
 .todo-check-slot {
   width: 25px;
-  height: calc(var(--editor-size) * 1.66);
+  height: 1.66em;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -289,18 +290,21 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .todo-handle {
   width: 20px;
-  height: 24px;
-  margin: .12em 0 0;
+  height: 1.66em;
+  margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--faint);
+  display: grid;
+  place-items: center;
   font-size: 14px;
-  line-height: 24px;
+  line-height: 1;
   opacity: .34;
   cursor: grab;
   touch-action: none;
 }
+.todo-handle::before { content: "≡"; }
 .editor-line--todo:hover .todo-handle, .todo-handle:focus-visible { opacity: .85; }
 
 .control-strip {
@@ -696,3 +700,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .auth-submit:disabled { opacity: .55; cursor: default; }
 .auth-back { justify-self: start; border: 0; background: transparent; color: var(--muted); padding: 5px 0; font: 400 13px/1.3 var(--ui-font); cursor: pointer; }
 .auth-error { margin: 0; color: var(--danger); font: 400 13px/1.4 var(--ui-font); }
+
+/* Revision 2: compact tag assignment list */
+.tag-sheet-list .sheet-row { min-height: 38px; padding: 5px 11px; }
+.tag-sheet-list .sheet-row + .sheet-row { margin-top: 1px; }
+.tag-sheet-list { margin-top: 2px; }
