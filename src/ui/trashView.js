@@ -1,4 +1,5 @@
 import { getSnippetTitle, getSnippetPreview } from '../domain/snippetText.js';
+import { batchIconMarkup } from './batchIcons.js';
 
 function bindTrashSelection(row, id, {
   selectionMode = false, onStartSelection = () => {}, onToggleSelection = () => {}, onRangeSelect = () => {}
@@ -30,9 +31,9 @@ function batchStripMarkup(count) {
   const disabled = count ? '' : ' disabled';
   return `<nav class="control-strip batch-control-strip" aria-label="Selected Trash actions">
     <span class="batch-count" aria-live="polite">${count}</span>
-    <button class="control-button" data-batch-action="restore"${disabled} aria-label="Restore selected" title="Restore">↺</button>
-    <button class="control-button is-danger" data-batch-action="delete"${disabled} aria-label="Delete selected permanently" title="Delete permanently">⌫</button>
-    <button class="control-button" data-batch-action="done" aria-label="Done selecting" title="Done">×</button>
+    <button class="control-button" data-batch-action="restore"${disabled} aria-label="Restore selected" title="Restore">${batchIconMarkup('restore')}</button>
+    <button class="control-button is-danger" data-batch-action="delete"${disabled} aria-label="Delete selected permanently" title="Delete permanently">${batchIconMarkup('trash')}</button>
+    <button class="control-button" data-batch-action="done" aria-label="Done selecting" title="Done">${batchIconMarkup('x')}</button>
   </nav>`;
 }
 

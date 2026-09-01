@@ -61,7 +61,7 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Snippets authentication no longer creates new Supabase users and requires membership in the Snippets-specific allowlist.
 - The app version is visible in Settings as **Snippets v0.3.0**.
 
-## Revision 4 — v0.4.0
+## Revision 4 — v0.4.1
 
 - Multi-select is available in Inbox, Starred, Archive, and Trash.
 - On touch devices, long-press a snippet to start selecting; on desktop, Cmd/Ctrl-click toggles individual items and Shift-click selects a range. **Select** is also available from the More menu.

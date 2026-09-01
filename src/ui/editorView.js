@@ -2,6 +2,7 @@ import { mountMarkdownEditor } from '../editor/markdownEditor.js';
 import { makeLibraryItem } from '../domain/libraryItem.js';
 import { EDITOR_FONTS } from './appearanceSheet.js';
 import { featherIconMarkup } from './brandIcon.js';
+import { batchIconMarkup } from './batchIcons.js';
 
 function renderTags(container, tags = []) {
   container.replaceChildren(...tags.map(tag => {
@@ -109,11 +110,11 @@ function batchStripMarkup(count) {
   const disabled = count ? '' : ' disabled';
   return `<nav class="control-strip batch-control-strip" data-testid="batch-control-strip" aria-label="Selected snippet actions" hidden>
     <span class="batch-count" aria-live="polite">${count}</span>
-    <button class="control-button" data-batch-action="star"${disabled} aria-label="Star or unstar selected" title="Star or unstar">★</button>
-    <button class="control-button" data-batch-action="archive"${disabled} aria-label="Archive or unarchive selected" title="Archive or unarchive">▣</button>
-    <button class="control-button" data-batch-action="tags"${disabled} aria-label="Tag selected" title="Tags">#</button>
-    <button class="control-button is-danger" data-batch-action="delete"${disabled} aria-label="Move selected to Trash" title="Trash">⌫</button>
-    <button class="control-button" data-batch-action="done" aria-label="Done selecting" title="Done">×</button>
+    <button class="control-button" data-batch-action="star"${disabled} aria-label="Star or unstar selected" title="Star or unstar">${batchIconMarkup('star')}</button>
+    <button class="control-button" data-batch-action="archive"${disabled} aria-label="Archive or unarchive selected" title="Archive or unarchive">${batchIconMarkup('archive')}</button>
+    <button class="control-button" data-batch-action="tags"${disabled} aria-label="Tag selected" title="Tags">${batchIconMarkup('tag')}</button>
+    <button class="control-button is-danger" data-batch-action="delete"${disabled} aria-label="Move selected to Trash" title="Trash">${batchIconMarkup('trash')}</button>
+    <button class="control-button" data-batch-action="done" aria-label="Done selecting" title="Done">${batchIconMarkup('x')}</button>
   </nav>`;
 }
 

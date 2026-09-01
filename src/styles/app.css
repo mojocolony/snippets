@@ -312,6 +312,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .todo-handle-icon { width: 17px; height: 17px; display: block; }
 .editor-line--todo:hover .todo-handle, .todo-handle:focus-visible { opacity: .85; }
 
+.control-strip[hidden] { display: none !important; }
+
 .control-strip {
   position: fixed;
   left: 50%;
@@ -347,6 +349,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .control-button:hover { background: var(--surface-strong); color: var(--text); }
 .control-button.is-danger { color: var(--danger); }
 .batch-control-strip { min-width: 0; }
+.batch-action-icon { width: 20px; height: 20px; display: block; }
 .batch-count {
   min-width: 34px;
   padding: 0 7px;
