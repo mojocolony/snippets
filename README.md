@@ -75,3 +75,10 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - The normal and multi-select bottom toolbars now use the same Lucide-style SVG icon geometry, including matching Star size, stroke, alignment, and control spacing.
 - The normal editor toolbar now uses SVG Menu, Tag, Star, Share, and Ellipsis icons; the library toolbar uses SVG Plus, Tag, Search, and Ellipsis icons. `Aa` remains text.
 - Trash now includes **Delete All** when it contains items. The action requires explicit confirmation and permanently deletes every item currently in Trash.
+
+## Revision 4.3 — v0.4.3
+
+- **More → Web Capture** surfaces the existing bookmarklets directly inside Snippets.
+- Desktop users can drag **Save Link**, **Save Selection**, or **Save Page Text** from the in-app Web Capture sheet to the bookmarks bar.
+- iPhone/iPad users get a concise mobile note and a direct **Open Web Capture Setup** link instead of unusable drag controls.
+- The in-app panel and `bookmarklets.html` now share the same bookmarklet generator so capture behavior cannot drift between the two surfaces.

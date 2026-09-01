@@ -14,6 +14,7 @@ import { openAppearanceSheet } from './ui/appearanceSheet.js';
 import { openMoreMenu } from './ui/moreMenu.js';
 import { showToast } from './ui/toast.js';
 import { openShortcutSheet } from './ui/shortcutSheet.js';
+import { openWebCaptureSheet } from './ui/webCaptureSheet.js';
 import { DEFAULT_SHORTCUTS, shortcutMatchesEvent } from './domain/keyboardShortcuts.js';
 import { chooseNextVisibleSnippet } from './domain/postArchive.js';
 
@@ -552,11 +553,13 @@ export async function createApp(root, { onSignOut = null } = {}) {
       { id: 'delete', label: 'Delete', danger: true },
       { id: 'select', label: 'Select' },
       { id: 'trash', label: 'Trash' },
+      { id: 'web-capture', label: 'Web Capture' },
       { id: 'shortcuts', label: 'Keyboard shortcuts' },
       { id: 'settings', label: 'Settings' }
     ] : [
       { id: 'select', label: 'Select' },
       { id: 'trash', label: 'Trash' },
+      { id: 'web-capture', label: 'Web Capture' },
       { id: 'shortcuts', label: 'Keyboard shortcuts' },
       { id: 'settings', label: 'Settings' }
     ];
@@ -569,6 +572,7 @@ export async function createApp(root, { onSignOut = null } = {}) {
         if (id === 'shortcuts') { openKeyboardShortcuts(); return; }
         if (id === 'select') { await enterSelectionMode(state.currentSnippet?.id || null); return; }
         if (id === 'trash') { await showTrash(); return; }
+        if (id === 'web-capture') { openWebCaptureSheet(); return; }
         if (id === 'signout') { await onSignOut?.(); return; }
         await flushSave();
         if (!state.currentSnippet) return;
@@ -615,6 +619,7 @@ export async function createApp(root, { onSignOut = null } = {}) {
     const actions = [
       { id: 'select', label: 'Select' },
       { id: 'trash', label: 'Trash' },
+      { id: 'web-capture', label: 'Web Capture' },
       { id: 'shortcuts', label: 'Keyboard shortcuts' },
       { id: 'settings', label: 'Settings' }
     ];
@@ -624,6 +629,7 @@ export async function createApp(root, { onSignOut = null } = {}) {
       onAction: async id => {
         if (id === 'select') await enterSelectionMode();
         else if (id === 'trash') await showTrash();
+        else if (id === 'web-capture') openWebCaptureSheet();
         else if (id === 'shortcuts') openKeyboardShortcuts();
         else if (id === 'settings') openAppearance();
         else if (id === 'signout') await onSignOut?.();

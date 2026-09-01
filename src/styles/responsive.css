@@ -229,3 +229,11 @@
     left: calc(var(--desktop-working-left) + var(--desktop-working-width) / 2);
   }
 }
+
+@media (max-width: 899px) {
+  .web-capture-intro { display: none; }
+  .web-capture-options { display: none; }
+  .web-capture-hint { display: none; }
+  .web-capture-mobile-note { display: block; font-size: 14px; margin: 10px 12px 16px; }
+  .web-capture-setup { min-height: 48px; font-size: 16px; }
+}

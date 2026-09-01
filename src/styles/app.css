@@ -757,3 +757,34 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .tag-sheet-list .sheet-row { min-height: 38px; padding: 5px 11px; }
 .tag-sheet-list .sheet-row + .sheet-row { margin-top: 1px; }
 .tag-sheet-list { margin-top: 2px; }
+
+.web-capture-intro,
+.web-capture-hint,
+.web-capture-mobile-note {
+  margin: 8px 11px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.web-capture-options {
+  display: grid;
+  gap: 5px;
+  padding: 0 4px;
+}
+.web-capture-bookmarklet {
+  display: grid;
+  gap: 2px;
+  min-height: 44px;
+  padding: 8px 11px;
+  border-radius: 9px;
+  color: var(--text);
+  text-decoration: none;
+  cursor: grab;
+}
+.web-capture-bookmarklet:hover { background: var(--surface); }
+.web-capture-bookmarklet:active { cursor: grabbing; }
+.web-capture-label { font-size: 13px; font-weight: 600; }
+.web-capture-description { color: var(--muted); font-size: 11px; }
+.web-capture-hint { margin-top: 7px; }
+.web-capture-mobile-note { display: none; }
+.web-capture-setup { margin-top: 4px; text-decoration: none; }

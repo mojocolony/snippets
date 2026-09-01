@@ -17,13 +17,14 @@
   <p>Drag these links to the bookmarks bar. Snippets must already be signed in for the smoothest capture.</p>
   <div class="links" id="links"></div>
   <p><strong>Save Link</strong> captures the page title and URL. <strong>Save Selection</strong> captures selected text plus its source. <strong>Save Page Text</strong> transfers the page text through a temporary browser window, so it is not limited by URL length.</p>
-<script>
-const APP='https://mojocolony.github.io/snippets/';
-function code(mode){
-  const text = mode==='selection' ? "String(getSelection())" : mode==='page' ? "document.body.innerText" : "''";
-  return `javascript:(()=>{const n=(crypto.randomUUID?.()||Date.now()+'-'+Math.random());const w=open('${APP}?captureSession='+encodeURIComponent(n),'_blank');const p={type:'snippets-capture',nonce:n,mode:'${mode}',title:document.title,url:location.href,text:${text}};let i=0;const t=setInterval(()=>{if(!w||w.closed||i++>120){clearInterval(t);return}w.postMessage(p,'https://mojocolony.github.io')},500)})()`;
-}
-for(const [label,mode] of [['Save Link','link'],['Save Selection','selection'],['Save Page Text','page']]){
-  const a=document.createElement('a');a.className='bookmarklet';a.textContent=label;a.href=code(mode);document.querySelector('#links').append(a);
+<script type="module">
+import { BOOKMARKLET_OPTIONS, createBookmarkletCode, resolveSnippetsAppUrl } from './src/capture/bookmarklets.js';
+const appUrl = resolveSnippetsAppUrl(location.href);
+for (const option of BOOKMARKLET_OPTIONS) {
+  const a = document.createElement('a');
+  a.className = 'bookmarklet';
+  a.textContent = option.label;
+  a.href = createBookmarkletCode(option.mode, appUrl);
+  document.querySelector('#links').append(a);
 }
 </script></main></body></html>

@@ -51,8 +51,10 @@ test('Delete All permanently removes every Trash item after explicit confirmatio
   assert.match(appSource, /onDeleteAll:\s*\(\) => deleteAllTrash\(\)/);
 });
 
-test('v0.4.2 bumps app version and PWA cache', () => {
-  assert.equal(packageJson.version, '0.4.2');
-  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.2'/);
-  assert.match(swSource, /snippets-r4-2/);
+test('v0.4.2 establishes the 0.4.2+ patch line and r4 cache family', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 2);
+  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.\d+'/);
+  assert.match(swSource, /snippets-r4-/);
 });
