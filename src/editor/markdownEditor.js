@@ -114,7 +114,10 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
         render();
         notify();
       });
-      row.append(checkbox);
+      const checkSlot = document.createElement('span');
+      checkSlot.className = 'todo-check-slot';
+      checkSlot.append(checkbox);
+      row.append(checkSlot);
     } else if (display.type === 'bullet') {
       const bullet = document.createElement('span');
       bullet.className = 'bullet-marker';

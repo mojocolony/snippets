@@ -28,3 +28,15 @@ test('build copies production root assets and retains Supabase CDN import in sta
   assert.match(build, /bookmarklets\.html/);
   assert.match(build, /cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@2/);
 });
+
+test('Revision 1 uses the Lucide Feather mark for app branding and install icons', async () => {
+  const icon = await text('assets/icon.svg');
+  const editor = await text('src/ui/editorView.js');
+  const auth = await text('src/auth/authView.js');
+  const brand = await text('src/ui/brandIcon.js');
+  assert.match(icon, /M20\.24 12\.24a6 6 0 0 0-8\.49-8\.49L5 10\.5V19h8\.5z/);
+  assert.match(icon, /x1="16"[^>]*x2="2"[^>]*y1="8"[^>]*y2="22"/);
+  assert.match(brand, /featherIconMarkup/);
+  assert.match(editor, /featherIconMarkup/);
+  assert.match(auth, /featherIconMarkup/);
+});

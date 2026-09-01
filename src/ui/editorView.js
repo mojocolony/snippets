@@ -1,6 +1,7 @@
 import { mountMarkdownEditor } from '../editor/markdownEditor.js';
 import { makeLibraryItem } from '../domain/libraryItem.js';
 import { EDITOR_FONTS } from './appearanceSheet.js';
+import { featherIconMarkup } from './brandIcon.js';
 
 function renderTags(container, tags = []) {
   container.replaceChildren(...tags.map(tag => {
@@ -72,7 +73,7 @@ export function renderEditorView(root, {
     <main class="editor-screen desktop-workspace${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}" data-testid="editor-screen">
       <aside class="desktop-sidebar" aria-label="Snippets">
         <div class="desktop-sidebar-head">
-          <span>Snippets</span>
+          <span class="brand-lockup">${featherIconMarkup('brand-feather')}<span>Snippets</span></span>
           <button class="quiet-button desktop-new-button" data-action="new-sidebar" aria-label="New snippet" title="New snippet">＋</button>
         </div>
         <div class="desktop-sidebar-list"></div>

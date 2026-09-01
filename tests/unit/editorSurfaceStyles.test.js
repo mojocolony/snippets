@@ -20,3 +20,12 @@ test('completed todo remains struck through while its text has focus', () => {
   assert.ok(match, 'editing rule exists');
   assert.doesNotMatch(match[1], /text-decoration\s*:\s*none/);
 });
+
+test('todo checkbox is vertically centered against the first text line box', () => {
+  const editorSource = fs.readFileSync(new URL('../../src/editor/markdownEditor.js', import.meta.url), 'utf8');
+  assert.match(editorSource, /className\s*=\s*['"]todo-check-slot['"]/);
+  assert.match(css, /\.todo-check-slot\s*\{[\s\S]*?height:\s*calc\(var\(--editor-size\)\s*\*\s*1\.66\)[\s\S]*?display:\s*flex[\s\S]*?align-items:\s*center/);
+  const checkboxRule = css.match(/\.todo-check\s*\{([^}]*)\}/);
+  assert.ok(checkboxRule, 'todo checkbox rule exists');
+  assert.match(checkboxRule[1], /margin:\s*0/);
+});

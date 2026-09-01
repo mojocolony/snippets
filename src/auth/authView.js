@@ -1,3 +1,5 @@
+import { featherIconMarkup } from '../ui/brandIcon.js';
+
 function element(tag, className, text = '') {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -15,7 +17,9 @@ export function renderAuthView(root, { onRequestCode, onVerify } = {}) {
     root.replaceChildren();
     const main = element('main', 'auth-screen');
     const panel = element('section', 'auth-panel');
-    panel.append(element('div', 'auth-wordmark', 'Snippets'));
+    const wordmark = element('div', 'auth-wordmark brand-lockup');
+    wordmark.innerHTML = `${featherIconMarkup('brand-feather')}<span>Snippets</span>`;
+    panel.append(wordmark);
 
     const title = element('h1', 'auth-title', mode === 'email' ? 'Sign in' : 'Check your email');
     panel.append(title);

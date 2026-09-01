@@ -1,0 +1,15 @@
+Snippets — Revision 1
+
+Changes:
+- Align todo checkboxes to the editor line box.
+- Use the Lucide Feather mark for app/PWA branding.
+- Increase iPhone library and toolbar typography/touch targets.
+- Bump the service-worker cache to snippets-r1 so deployed clients refresh assets.
+
+To deploy with GitHub Desktop:
+1. Quit/open Snippets only after the GitHub Pages update is live.
+2. Copy the contents of this folder into your local snippets repository, preserving folders and replacing existing files.
+3. In GitHub Desktop, review the changes.
+4. Commit with a message such as: "Snippets Revision 1".
+5. Push origin.
+6. Wait for GitHub Pages to finish deploying, then reload Snippets. If the installed PWA still shows the old UI, close it completely and reopen it; the new service worker will replace the old cache.
