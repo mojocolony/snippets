@@ -4,7 +4,7 @@ import {
   createSnippet, getSnippet, listSnippets, updateSnippet, setPinnedSnippet,
   moveToTrash, restoreSnippet, purgeExpiredTrash
 } from '../../src/storage/snippetRepository.js';
-import { toggleSnippetTag, listTagsWithCounts, normalizeTag } from '../../src/storage/tagRepository.js';
+import { toggleSnippetTag, setSnippetTag, listTagsWithCounts, normalizeTag } from '../../src/storage/tagRepository.js';
 import { getPreferences, setPreference } from '../../src/storage/preferencesRepository.js';
 import { deleteSnippetsDb } from '../../src/storage/db.js';
 
@@ -66,6 +66,16 @@ test('tags toggle globally with counts', async () => {
   await toggleSnippetTag(a.id, '#Macbeth');
   await toggleSnippetTag(b.id, 'macbeth');
   assert.deepEqual(await listTagsWithCounts(), [{ name: 'macbeth', count: 2 }]);
+});
+
+test('batch tag primitive can force a tag on or off without toggling mixed state', async () => {
+  await reset();
+  const item = await createSnippet('tag me', 1_000);
+  await setSnippetTag(item.id, 'research', true);
+  await setSnippetTag(item.id, 'research', true);
+  assert.deepEqual((await getSnippet(item.id)).tags, ['research']);
+  await setSnippetTag(item.id, 'research', false);
+  assert.deepEqual((await getSnippet(item.id)).tags, []);
 });
 
 test('tag normalization removes HTML metacharacters from user input', () => {

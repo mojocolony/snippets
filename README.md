@@ -60,3 +60,12 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - The launch preference is labeled **Time to return to Inbox**; after the selected interval, Snippets opens Inbox unless a snippet is pinned.
 - Snippets authentication no longer creates new Supabase users and requires membership in the Snippets-specific allowlist.
 - The app version is visible in Settings as **Snippets v0.3.0**.
+
+## Revision 4 — v0.4.0
+
+- Multi-select is available in Inbox, Starred, Archive, and Trash.
+- On touch devices, long-press a snippet to start selecting; on desktop, Cmd/Ctrl-click toggles individual items and Shift-click selects a range. **Select** is also available from the More menu.
+- Batch actions support star/unstar, archive/unarchive, tag assignment, and moving items to Trash.
+- Batch tag assignment shows mixed tag states and can apply or remove a tag across the whole selection.
+- Trash is consistently available from **More → Trash**, including from the desktop editor, and Trash supports batch restore and permanent deletion.
+- The star / tags / add-tag metadata strip stays sticky while the note scrolls.

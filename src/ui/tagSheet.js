@@ -5,6 +5,7 @@ export function openTagSheet({
   mode = 'assign',
   tags = [],
   assigned = [],
+  mixed = [],
   activeTag = null,
   onToggle = async () => assigned,
   onCreate = async () => assigned,
@@ -24,6 +25,7 @@ export function openTagSheet({
   list.className = 'tag-sheet-list';
   sheet.body.append(list);
   let currentAssigned = [...assigned];
+  let currentMixed = [...mixed];
   let query = '';
 
   async function render() {
@@ -54,11 +56,20 @@ export function openTagSheet({
         const check = document.createElement('input');
         check.type = 'checkbox';
         check.checked = currentAssigned.includes(tag.name);
+        check.indeterminate = currentMixed.includes(tag.name);
         check.setAttribute('aria-label', tag.name);
         check.addEventListener('change', async () => {
           check.disabled = true;
-          try { currentAssigned = await onToggle(tag.name); }
-          finally { check.disabled = false; render(); }
+          try {
+            const result = await onToggle(tag.name, check.checked);
+            if (Array.isArray(result)) {
+              currentAssigned = result;
+              currentMixed = [];
+            } else if (result) {
+              currentAssigned = [...(result.assigned || [])];
+              currentMixed = [...(result.mixed || [])];
+            }
+          } finally { check.disabled = false; render(); }
         });
         label.append(name, check);
         list.append(label);
@@ -87,7 +98,14 @@ export function openTagSheet({
       create.addEventListener('click', async () => {
         create.disabled = true;
         try {
-          currentAssigned = await onCreate(normalizedQuery);
+          const result = await onCreate(normalizedQuery, true);
+          if (Array.isArray(result)) {
+            currentAssigned = result;
+            currentMixed = [];
+          } else if (result) {
+            currentAssigned = [...(result.assigned || [])];
+            currentMixed = [...(result.mixed || [])];
+          }
           tags = [...tags, { name: normalizedQuery, count: 1 }].sort((a, b) => a.name.localeCompare(b.name));
           query = '';
           input.value = '';

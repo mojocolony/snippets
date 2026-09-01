@@ -17,25 +17,91 @@ function makeSegmented(options, active, onSelect, label) {
   return wrap;
 }
 
+function bindSelectableRow(row, id, {
+  selectionMode = false,
+  onOpen = () => {}, onStartSelection = () => {}, onToggleSelection = () => {}, onRangeSelect = () => {}
+} = {}) {
+  let longPressTimer = null;
+  let suppressClick = false;
+  const cancelLongPress = () => {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  };
+
+  row.addEventListener('pointerdown', event => {
+    if (selectionMode || event.pointerType === 'mouse') return;
+    cancelLongPress();
+    longPressTimer = setTimeout(() => {
+      suppressClick = true;
+      onStartSelection(id);
+    }, 450);
+  });
+  row.addEventListener('pointerup', cancelLongPress);
+  row.addEventListener('pointercancel', cancelLongPress);
+  row.addEventListener('pointerleave', cancelLongPress);
+
+  row.addEventListener('click', event => {
+    if (suppressClick) {
+      suppressClick = false;
+      event.preventDefault();
+      return;
+    }
+    if (selectionMode) {
+      event.preventDefault();
+      if (event.shiftKey) onRangeSelect(id);
+      else onToggleSelection(id);
+      return;
+    }
+    if (event.metaKey || event.ctrlKey) {
+      event.preventDefault();
+      onStartSelection(id);
+      return;
+    }
+    if (event.shiftKey) {
+      event.preventDefault();
+      onRangeSelect(id);
+      return;
+    }
+    onOpen(id);
+  });
+}
+
+function batchStripMarkup(count) {
+  const disabled = count ? '' : ' disabled';
+  return `<nav class="control-strip batch-control-strip" data-testid="batch-control-strip" aria-label="Selected snippet actions">
+    <span class="batch-count" aria-live="polite">${count}</span>
+    <button class="control-button" data-batch-action="star"${disabled} aria-label="Star or unstar selected" title="Star or unstar">★</button>
+    <button class="control-button" data-batch-action="archive"${disabled} aria-label="Archive or unarchive selected" title="Archive or unarchive">▣</button>
+    <button class="control-button" data-batch-action="tags"${disabled} aria-label="Tag selected" title="Tags">#</button>
+    <button class="control-button is-danger" data-batch-action="delete"${disabled} aria-label="Move selected to Trash" title="Trash">⌫</button>
+    <button class="control-button" data-batch-action="done" aria-label="Done selecting" title="Done">×</button>
+  </nav>`;
+}
+
 export function renderLibraryView(root, {
   scope = 'inbox', items = [], activeTag = null, tagScope = 'all', query = '', searchOpen = false,
-  focusSearch = false, onScope = () => {}, onTagScope = () => {}, onClearTag = () => {},
+  focusSearch = false, selectionMode = false, selectedIds = new Set(),
+  onScope = () => {}, onTagScope = () => {}, onClearTag = () => {},
   onOpen = () => {}, onNew = () => {}, onTags = () => {}, onSearch = () => {},
-  onToggleSearch = () => {}, onAppearance = () => {}, onMore = () => {}
+  onToggleSearch = () => {}, onAppearance = () => {}, onMore = () => {},
+  onStartSelection = () => {}, onToggleSelection = () => {}, onRangeSelect = () => {},
+  onBatchStar = () => {}, onBatchArchive = () => {}, onBatchTags = () => {}, onBatchDelete = () => {},
+  onDoneSelection = () => {}
 } = {}) {
+  const selected = selectedIds instanceof Set ? selectedIds : new Set(selectedIds || []);
   root.innerHTML = `
-    <main class="library-screen" data-testid="library-screen">
+    <main class="library-screen${selectionMode ? ' is-selection-mode' : ''}" data-testid="library-screen">
       <div class="library-inner">
         <header class="library-header"></header>
         <section class="library-list" data-testid="library-list"></section>
       </div>
-      <nav class="control-strip" data-testid="control-strip" aria-label="Library controls">
+      ${selectionMode ? batchStripMarkup(selected.size) : `<nav class="control-strip" data-testid="control-strip" aria-label="Library controls">
         <button class="control-button" data-action="new" aria-label="New" title="New">＋</button>
         <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">#</button>
         <button class="control-button" data-action="search" aria-label="Search" title="Search">⌕</button>
         <button class="control-button control-aa" data-action="appearance" aria-label="Appearance" title="Appearance">Aa</button>
         <button class="control-button control-more" data-action="more" aria-label="More" title="More">•••</button>
-      </nav>
+      </nav>`}
     </main>`;
   const header = root.querySelector('.library-header');
   const list = root.querySelector('.library-list');
@@ -79,9 +145,16 @@ export function renderLibraryView(root, {
       const item = makeLibraryItem(snippet);
       const row = document.createElement('button');
       row.type = 'button';
-      row.className = 'library-row';
+      row.className = `library-row${selectionMode ? ' is-selection-mode' : ''}${selected.has(item.id) ? ' is-selected' : ''}`;
       row.dataset.testid = 'library-row';
       row.dataset.snippetId = item.id;
+      if (selectionMode) {
+        const indicator = document.createElement('span');
+        indicator.className = 'selection-indicator';
+        indicator.setAttribute('aria-hidden', 'true');
+        if (selected.has(item.id)) indicator.textContent = '✓';
+        row.append(indicator);
+      }
       const title = document.createElement('span');
       title.className = 'library-title';
       title.textContent = item.title || 'Untitled';
@@ -108,9 +181,18 @@ export function renderLibraryView(root, {
       modified.textContent = item.modified;
       meta.append(star, modified);
       row.append(title, preview, tags, meta);
-      row.addEventListener('click', () => onOpen(item.id));
+      bindSelectableRow(row, item.id, { selectionMode, onOpen, onStartSelection, onToggleSelection, onRangeSelect });
       list.append(row);
     }
+  }
+
+  if (selectionMode) {
+    root.querySelector('[data-batch-action="star"]').addEventListener('click', onBatchStar);
+    root.querySelector('[data-batch-action="archive"]').addEventListener('click', onBatchArchive);
+    root.querySelector('[data-batch-action="tags"]').addEventListener('click', onBatchTags);
+    root.querySelector('[data-batch-action="delete"]').addEventListener('click', onBatchDelete);
+    root.querySelector('[data-batch-action="done"]').addEventListener('click', onDoneSelection);
+    return;
   }
 
   const searchButton = root.querySelector('[data-action="search"]');

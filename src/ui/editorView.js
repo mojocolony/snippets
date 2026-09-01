@@ -12,7 +12,40 @@ function renderTags(container, tags = []) {
   }));
 }
 
-function renderSidebarList(container, snippets = [], currentId = null, onOpenSnippet = () => {}) {
+function bindSidebarRow(row, id, {
+  selectionMode = false,
+  onOpenSnippet = () => {}, onStartSelection = () => {}, onToggleSelection = () => {}, onRangeSelect = () => {}
+} = {}) {
+  let longPressTimer = null;
+  let suppressClick = false;
+  const cancelLongPress = () => { clearTimeout(longPressTimer); longPressTimer = null; };
+  row.addEventListener('pointerdown', event => {
+    if (selectionMode || event.pointerType === 'mouse') return;
+    cancelLongPress();
+    longPressTimer = setTimeout(() => { suppressClick = true; onStartSelection(id); }, 450);
+  });
+  row.addEventListener('pointerup', cancelLongPress);
+  row.addEventListener('pointercancel', cancelLongPress);
+  row.addEventListener('pointerleave', cancelLongPress);
+  row.addEventListener('click', event => {
+    if (suppressClick) { suppressClick = false; event.preventDefault(); return; }
+    if (selectionMode) {
+      event.preventDefault();
+      if (event.shiftKey) onRangeSelect(id);
+      else onToggleSelection(id);
+      return;
+    }
+    if (event.metaKey || event.ctrlKey) { event.preventDefault(); onStartSelection(id); return; }
+    if (event.shiftKey) { event.preventDefault(); onRangeSelect(id); return; }
+    onOpenSnippet(id);
+  });
+}
+
+function renderSidebarList(container, snippets = [], currentId = null, {
+  selectionMode = false, selectedIds = new Set(),
+  onOpenSnippet = () => {}, onStartSelection = () => {}, onToggleSelection = () => {}, onRangeSelect = () => {}
+} = {}) {
+  const selected = selectedIds instanceof Set ? selectedIds : new Set(selectedIds || []);
   container.replaceChildren();
   if (!snippets.length) {
     const empty = document.createElement('div');
@@ -27,8 +60,18 @@ function renderSidebarList(container, snippets = [], currentId = null, onOpenSni
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'desktop-sidebar-row';
-    row.classList.toggle('is-selected', item.id === currentId);
+    row.classList.toggle('is-current', !selectionMode && item.id === currentId);
+    row.classList.toggle('is-selection-mode', selectionMode);
+    row.classList.toggle('is-selected', selectionMode && selected.has(item.id));
     row.dataset.snippetId = item.id;
+
+    if (selectionMode) {
+      const indicator = document.createElement('span');
+      indicator.className = 'selection-indicator desktop-selection-indicator';
+      indicator.setAttribute('aria-hidden', 'true');
+      if (selected.has(item.id)) indicator.textContent = '✓';
+      row.append(indicator);
+    }
 
     const titleRow = document.createElement('span');
     titleRow.className = 'desktop-sidebar-title-row';
@@ -57,18 +100,37 @@ function renderSidebarList(container, snippets = [], currentId = null, onOpenSni
     footer.append(tags, modified);
 
     row.append(titleRow, preview, footer);
-    row.addEventListener('click', () => onOpenSnippet(item.id));
+    bindSidebarRow(row, item.id, { selectionMode, onOpenSnippet, onStartSelection, onToggleSelection, onRangeSelect });
     container.append(row);
   }
+}
+
+function batchStripMarkup(count) {
+  const disabled = count ? '' : ' disabled';
+  return `<nav class="control-strip batch-control-strip" data-testid="batch-control-strip" aria-label="Selected snippet actions" hidden>
+    <span class="batch-count" aria-live="polite">${count}</span>
+    <button class="control-button" data-batch-action="star"${disabled} aria-label="Star or unstar selected" title="Star or unstar">★</button>
+    <button class="control-button" data-batch-action="archive"${disabled} aria-label="Archive or unarchive selected" title="Archive or unarchive">▣</button>
+    <button class="control-button" data-batch-action="tags"${disabled} aria-label="Tag selected" title="Tags">#</button>
+    <button class="control-button is-danger" data-batch-action="delete"${disabled} aria-label="Move selected to Trash" title="Trash">⌫</button>
+    <button class="control-button" data-batch-action="done" aria-label="Done selecting" title="Done">×</button>
+  </nav>`;
 }
 
 export function renderEditorView(root, {
   content = '', snippet = null, preferences,
   libraryItems = [], libraryScope = 'inbox', sidebarCollapsed = false,
+  selectionMode = false, selectedIds = new Set(),
   onContentChange = () => {}, onLibrary = () => {}, onTags = () => {},
   onStar = () => {}, onAppearance = () => {}, onShare = () => {}, onMore = () => {},
-  onLibraryScope = () => {}, onOpenSnippet = () => {}, onNew = () => {}
+  onLibraryScope = () => {}, onOpenSnippet = () => {}, onNew = () => {},
+  onStartSelection = () => {}, onToggleSelection = () => {}, onRangeSelect = () => {},
+  onBatchStar = () => {}, onBatchArchive = () => {}, onBatchTags = () => {}, onBatchDelete = () => {},
+  onDoneSelection = () => {}
 } = {}) {
+  let selectionActive = Boolean(selectionMode);
+  let selectionIds = selectedIds instanceof Set ? new Set(selectedIds) : new Set(selectedIds || []);
+
   root.innerHTML = `
     <main class="editor-screen desktop-workspace${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}" data-testid="editor-screen">
       <aside class="desktop-sidebar" aria-label="Snippets">
@@ -104,7 +166,7 @@ export function renderEditorView(root, {
           </div>
           <section class="editor-sheet" aria-label="Snippet"><div id="markdown-editor-host"></div></section>
         </div>
-        <nav class="control-strip" data-testid="control-strip" aria-label="Snippet controls">
+        <nav class="control-strip normal-control-strip" data-testid="control-strip" aria-label="Snippet controls">
           <button class="control-button" data-action="library" aria-label="Library" title="Library">☰</button>
           <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">#</button>
           <button class="control-button" data-action="star" aria-label="Star" title="Star">☆</button>
@@ -112,6 +174,7 @@ export function renderEditorView(root, {
           <button class="control-button" data-action="share" aria-label="Share" title="Share">↑</button>
           <button class="control-button control-more" data-action="more" aria-label="More" title="More">•••</button>
         </nav>
+        ${batchStripMarkup(selectionIds.size)}
       </section>
     </main>`;
 
@@ -127,6 +190,9 @@ export function renderEditorView(root, {
   const star = root.querySelector('[data-action="star"]');
   const share = root.querySelector('[data-action="share"]');
   const editorHost = root.querySelector('#markdown-editor-host');
+  const normalStrip = root.querySelector('.normal-control-strip');
+  const batchStrip = root.querySelector('.batch-control-strip');
+  const batchCount = root.querySelector('.batch-count');
   const font = EDITOR_FONTS[preferences.editorFont] ?? EDITOR_FONTS['ia-writer-duo'];
 
   const editor = mountMarkdownEditor(editorHost, {
@@ -162,7 +228,23 @@ export function renderEditorView(root, {
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', String(active));
     });
-    renderSidebarList(sidebarList, libraryItems, currentId, onOpenSnippet);
+    renderSidebarList(sidebarList, libraryItems, currentId, {
+      selectionMode: selectionActive,
+      selectedIds: selectionIds,
+      onOpenSnippet, onStartSelection, onToggleSelection, onRangeSelect
+    });
+  }
+
+  function setSelectionState({ active = false, ids = new Set() } = {}) {
+    selectionActive = Boolean(active);
+    selectionIds = ids instanceof Set ? new Set(ids) : new Set(ids || []);
+    normalStrip.hidden = selectionActive;
+    batchStrip.hidden = !selectionActive;
+    batchCount.textContent = String(selectionIds.size);
+    batchStrip.querySelectorAll('[data-batch-action]:not([data-batch-action="done"])').forEach(button => {
+      button.disabled = selectionIds.size === 0;
+    });
+    updateSidebar(libraryItems, libraryScope, snippet?.id || null);
   }
 
   function setSidebarCollapsed(collapsed) {
@@ -172,6 +254,7 @@ export function renderEditorView(root, {
   updateMeta(snippet);
   updateSidebar(libraryItems, libraryScope, snippet?.id || null);
   setSidebarCollapsed(sidebarCollapsed);
+  setSelectionState({ active: selectionActive, ids: selectionIds });
   share.disabled = !content.trim();
 
   root.querySelector('[data-action="library"]').addEventListener('click', onLibrary);
@@ -185,11 +268,17 @@ export function renderEditorView(root, {
   root.querySelector('[data-action="more"]').addEventListener('click', onMore);
   root.querySelector('[data-action="new-sidebar"]').addEventListener('click', onNew);
   tabButtons.forEach(button => button.addEventListener('click', () => onLibraryScope(button.dataset.scope)));
+  root.querySelector('[data-batch-action="star"]').addEventListener('click', onBatchStar);
+  root.querySelector('[data-batch-action="archive"]').addEventListener('click', onBatchArchive);
+  root.querySelector('[data-batch-action="tags"]').addEventListener('click', onBatchTags);
+  root.querySelector('[data-batch-action="delete"]').addEventListener('click', onBatchDelete);
+  root.querySelector('[data-batch-action="done"]').addEventListener('click', onDoneSelection);
 
   return {
     editor,
     updateMeta,
     updateSidebar,
+    setSelectionState,
     setSidebarCollapsed,
     setShareEnabled(enabled) { share.disabled = !enabled; },
     updateAppearance(nextPreferences) {

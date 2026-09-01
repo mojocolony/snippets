@@ -66,8 +66,8 @@ test('appearance labels return timing as time to return to Inbox', () => {
   assert.doesNotMatch(appearanceSource, /Return to last snippet/);
 });
 
-test('app exposes version 0.3.0 and bumps the PWA cache for the revision', () => {
-  assert.equal(packageJson.version, '0.3.0');
+test('app exposes its semantic version in Settings and uses a revisioned PWA cache', () => {
+  assert.match(packageJson.version, /^0\.\d+\.\d+$/);
   assert.match(appearanceSource, /APP_VERSION/);
-  assert.match(swSource, /snippets-r3/);
+  assert.match(swSource, /snippets-r\d+/);
 });

@@ -24,6 +24,17 @@ export async function toggleSnippetTag(snippetId, rawName) {
   return updateSnippet(snippetId, { tags });
 }
 
+
+export async function setSnippetTag(snippetId, rawName, enabled) {
+  const name = await ensureTag(rawName);
+  const snippet = await getSnippet(snippetId);
+  if (!snippet) throw new Error(`Snippet not found: ${snippetId}`);
+  const hasTag = snippet.tags.includes(name);
+  if (hasTag === Boolean(enabled)) return snippet;
+  const tags = enabled ? [...snippet.tags, name].sort() : snippet.tags.filter(tag => tag !== name);
+  return updateSnippet(snippetId, { tags });
+}
+
 export async function listTagsWithCounts() {
   const [tags, snippets] = await Promise.all([dbGetAll('tags'), dbGetAll('snippets')]);
   return tags.map(({ name }) => ({

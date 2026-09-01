@@ -2,7 +2,7 @@ import {
   createSnippet, deleteSnippetPermanently, getSnippet, listSnippets, moveToTrash,
   purgeExpiredTrash, removeSnippetIfEmpty, restoreSnippet, setPinnedSnippet, updateSnippet
 } from './storage/snippetRepository.js';
-import { listTagsWithCounts, toggleSnippetTag } from './storage/tagRepository.js';
+import { listTagsWithCounts, setSnippetTag, toggleSnippetTag } from './storage/tagRepository.js';
 import { getPreferences, setPreference } from './storage/preferencesRepository.js';
 import { chooseLaunchTarget } from './domain/launchPolicy.js';
 import { toPlainText } from './domain/snippetText.js';
@@ -71,7 +71,11 @@ export async function createApp(root, { onSignOut = null } = {}) {
     searchOpen: false,
     pendingMarkdown: null,
     saveTimer: null,
-    savePromise: Promise.resolve()
+    savePromise: Promise.resolve(),
+    selectionMode: false,
+    selectedIds: new Set(),
+    selectionAnchorId: null,
+    trashReturn: null
   };
   state.preferences.keyboardShortcuts = { ...DEFAULT_SHORTCUTS, ...(state.preferences.keyboardShortcuts || {}) };
   state.preferences.sidebarCollapsed = Boolean(state.preferences.sidebarCollapsed);
@@ -84,6 +88,181 @@ export async function createApp(root, { onSignOut = null } = {}) {
     if (state.preferences.themeMode === 'system') applyTheme('system');
   };
   systemTheme.addEventListener?.('change', systemThemeHandler);
+
+  function resetSelectionState() {
+    state.selectionMode = false;
+    state.selectedIds = new Set();
+    state.selectionAnchorId = null;
+  }
+
+  function effectiveLibraryScope() {
+    return state.activeTag ? state.tagScope : state.libraryScope;
+  }
+
+  async function currentSelectableItems() {
+    if (state.screen === 'trash') {
+      return (await listSnippets({ scope: 'trash' })).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+    }
+    return listSnippets({
+      scope: effectiveLibraryScope(),
+      tag: state.activeTag,
+      query: state.query
+    });
+  }
+
+  async function syncSelectionUi() {
+    if (state.screen === 'editor' && state.editorView) {
+      state.editorView.setSelectionState({ active: state.selectionMode, ids: state.selectedIds });
+      return;
+    }
+    if (state.screen === 'library') { await renderLibrary(); return; }
+    if (state.screen === 'trash') await renderTrash();
+  }
+
+  async function enterSelectionMode(id = null) {
+    state.selectionMode = true;
+    state.selectedIds = new Set(id ? [id] : []);
+    state.selectionAnchorId = id || state.selectionAnchorId;
+    if (isDesktop() && state.screen === 'editor' && state.preferences.sidebarCollapsed) {
+      state.preferences = await setPreference('sidebarCollapsed', false);
+      state.editorView?.setSidebarCollapsed(false);
+    }
+    await syncSelectionUi();
+  }
+
+  async function toggleSelection(id) {
+    if (!state.selectionMode) return enterSelectionMode(id);
+    const next = new Set(state.selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    state.selectedIds = next;
+    state.selectionAnchorId = id;
+    await syncSelectionUi();
+  }
+
+  async function rangeSelect(id) {
+    const items = await currentSelectableItems();
+    const ids = items.map(item => item.id);
+    const anchor = state.selectionAnchorId || state.currentSnippet?.id || id;
+    const from = ids.indexOf(anchor);
+    const to = ids.indexOf(id);
+    if (from < 0 || to < 0) return enterSelectionMode(id);
+    state.selectionMode = true;
+    const next = new Set(state.selectedIds);
+    for (const selectedId of ids.slice(Math.min(from, to), Math.max(from, to) + 1)) next.add(selectedId);
+    state.selectedIds = next;
+    state.selectionAnchorId = anchor;
+    await syncSelectionUi();
+  }
+
+  async function selectedSnippets() {
+    const results = await Promise.all([...state.selectedIds].map(id => getSnippet(id)));
+    return results.filter(Boolean);
+  }
+
+  function summarizeTags(items) {
+    const names = new Set(items.flatMap(item => item.tags || []));
+    const assigned = [];
+    const mixed = [];
+    for (const name of names) {
+      const count = items.filter(item => item.tags?.includes(name)).length;
+      if (count === items.length) assigned.push(name);
+      else if (count > 0) mixed.push(name);
+    }
+    return { assigned: assigned.sort(), mixed: mixed.sort() };
+  }
+
+  async function refreshAfterBatchMutation() {
+    if (state.screen === 'trash') {
+      const visible = await currentSelectableItems();
+      const visibleIds = new Set(visible.map(item => item.id));
+      state.selectedIds = new Set([...state.selectedIds].filter(id => visibleIds.has(id)));
+      if (!state.selectedIds.size) resetSelectionState();
+      await renderTrash();
+      return;
+    }
+
+    const visible = await currentSelectableItems();
+    const visibleIds = new Set(visible.map(item => item.id));
+    state.selectedIds = new Set([...state.selectedIds].filter(id => visibleIds.has(id)));
+    if (!state.selectedIds.size) resetSelectionState();
+
+    if (state.screen === 'editor' && state.editorView) {
+      if (state.currentSnippet && !visibleIds.has(state.currentSnippet.id)) {
+        resetSelectionState();
+        await showEditor(visible[0]?.id || null);
+        return;
+      }
+      if (state.currentSnippet) {
+        state.currentSnippet = await getSnippet(state.currentSnippet.id);
+        state.editorView.updateMeta(state.currentSnippet);
+      }
+      await refreshDesktopSidebar();
+      state.editorView?.setSelectionState({ active: state.selectionMode, ids: state.selectedIds });
+      return;
+    }
+    await renderLibrary();
+  }
+
+  async function batchToggleStar() {
+    const items = await selectedSnippets();
+    if (!items.length) return;
+    const target = !items.every(item => item.starred);
+    for (const item of items) await updateSnippet(item.id, { starred: target });
+    await refreshAfterBatchMutation();
+  }
+
+  async function batchToggleArchive() {
+    const items = await selectedSnippets();
+    if (!items.length) return;
+    const target = !items.every(item => item.archived);
+    for (const item of items) await updateSnippet(item.id, { archived: target });
+    await refreshAfterBatchMutation();
+  }
+
+  async function openBatchTags() {
+    let items = await selectedSnippets();
+    if (!items.length) return;
+    let tags = await listTagsWithCounts();
+    let summary = summarizeTags(items);
+    const known = new Set(tags.map(tag => tag.name));
+    for (const name of [...summary.assigned, ...summary.mixed]) {
+      if (!known.has(name)) tags.push({ name, count: items.filter(item => item.tags?.includes(name)).length });
+    }
+    tags = tags.sort((a, b) => a.name.localeCompare(b.name));
+    openTagSheet({
+      mode: 'assign',
+      tags,
+      assigned: summary.assigned,
+      mixed: summary.mixed,
+      onToggle: async (name, enabled) => {
+        for (const item of items) await setSnippetTag(item.id, name, enabled);
+        items = await selectedSnippets();
+        summary = summarizeTags(items);
+        await refreshAfterBatchMutation();
+        return summary;
+      },
+      onCreate: async (name) => {
+        for (const item of items) await setSnippetTag(item.id, name, true);
+        items = await selectedSnippets();
+        summary = summarizeTags(items);
+        await refreshAfterBatchMutation();
+        return summary;
+      }
+    });
+  }
+
+  async function batchMoveToTrash() {
+    const items = await selectedSnippets();
+    if (!items.length) return;
+    for (const item of items) await moveToTrash(item.id);
+    await refreshAfterBatchMutation();
+  }
+
+  async function finishSelection() {
+    resetSelectionState();
+    await syncSelectionUi();
+  }
 
   async function refreshDesktopSidebar() {
     if (!isDesktop() || state.screen !== 'editor' || !state.editorView) return;
@@ -98,6 +277,7 @@ export async function createApp(root, { onSignOut = null } = {}) {
   }
 
   async function switchLibraryScope(scope) {
+    resetSelectionState();
     state.libraryScope = scope;
     state.activeTag = null;
     state.tagScope = 'all';
@@ -162,6 +342,7 @@ export async function createApp(root, { onSignOut = null } = {}) {
   }
 
   async function showEditor(id = null) {
+    resetSelectionState();
     if (state.screen === 'editor' && state.editorView) await leaveEditor();
     state.screen = 'editor';
     state.currentSnippet = id ? await getSnippet(id) : null;
@@ -176,6 +357,8 @@ export async function createApp(root, { onSignOut = null } = {}) {
       libraryItems,
       libraryScope: state.libraryScope,
       sidebarCollapsed: state.preferences.sidebarCollapsed,
+      selectionMode: state.selectionMode,
+      selectedIds: state.selectedIds,
       onContentChange: queueSave,
       onLibrary: handleLibraryControl,
       onTags: () => openEditorTags(),
@@ -185,12 +368,21 @@ export async function createApp(root, { onSignOut = null } = {}) {
       onMore: () => openEditorMore(),
       onLibraryScope: scope => switchLibraryScope(scope),
       onOpenSnippet: id => showEditor(id),
-      onNew: () => showEditor(null)
+      onNew: () => showEditor(null),
+      onStartSelection: id => enterSelectionMode(id),
+      onToggleSelection: id => toggleSelection(id),
+      onRangeSelect: id => rangeSelect(id),
+      onBatchStar: () => batchToggleStar(),
+      onBatchArchive: () => batchToggleArchive(),
+      onBatchTags: () => openBatchTags(),
+      onBatchDelete: () => batchMoveToTrash(),
+      onDoneSelection: () => finishSelection()
     });
     requestAnimationFrame(() => state.editorView?.focus());
   }
 
   async function showLibrary(scope = state.libraryScope) {
+    resetSelectionState();
     state.libraryScope = scope;
     if (isDesktop()) {
       state.activeTag = null;
@@ -222,6 +414,8 @@ export async function createApp(root, { onSignOut = null } = {}) {
       query: state.query,
       searchOpen: state.searchOpen,
       focusSearch,
+      selectionMode: state.selectionMode,
+      selectedIds: state.selectedIds,
       onScope: value => switchLibraryScope(value),
       onTagScope: async value => { state.tagScope = value; await renderLibrary(); },
       onClearTag: async () => { state.activeTag = null; state.tagScope = 'all'; await renderLibrary(); },
@@ -239,7 +433,15 @@ export async function createApp(root, { onSignOut = null } = {}) {
         renderLibrary({ focusSearch: state.searchOpen });
       },
       onAppearance: () => openAppearance(),
-      onMore: () => openLibraryMore()
+      onMore: () => openLibraryMore(),
+      onStartSelection: id => enterSelectionMode(id),
+      onToggleSelection: id => toggleSelection(id),
+      onRangeSelect: id => rangeSelect(id),
+      onBatchStar: () => batchToggleStar(),
+      onBatchArchive: () => batchToggleArchive(),
+      onBatchTags: () => openBatchTags(),
+      onBatchDelete: () => batchMoveToTrash(),
+      onDoneSelection: () => finishSelection()
     });
   }
 
@@ -348,9 +550,16 @@ export async function createApp(root, { onSignOut = null } = {}) {
       { id: 'copy', label: 'Copy' },
       { id: 'copy-markdown', label: 'Copy Markdown' },
       { id: 'delete', label: 'Delete', danger: true },
+      { id: 'select', label: 'Select' },
+      { id: 'trash', label: 'Trash' },
       { id: 'shortcuts', label: 'Keyboard shortcuts' },
       { id: 'settings', label: 'Settings' }
-    ] : [{ id: 'shortcuts', label: 'Keyboard shortcuts' }, { id: 'settings', label: 'Settings' }];
+    ] : [
+      { id: 'select', label: 'Select' },
+      { id: 'trash', label: 'Trash' },
+      { id: 'shortcuts', label: 'Keyboard shortcuts' },
+      { id: 'settings', label: 'Settings' }
+    ];
     if (onSignOut) actions.push({ id: 'signout', label: 'Sign out' });
 
     openMoreMenu({
@@ -358,6 +567,8 @@ export async function createApp(root, { onSignOut = null } = {}) {
       onAction: async id => {
         if (id === 'settings') { openAppearance(); return; }
         if (id === 'shortcuts') { openKeyboardShortcuts(); return; }
+        if (id === 'select') { await enterSelectionMode(state.currentSnippet?.id || null); return; }
+        if (id === 'trash') { await showTrash(); return; }
         if (id === 'signout') { await onSignOut?.(); return; }
         await flushSave();
         if (!state.currentSnippet) return;
@@ -401,12 +612,18 @@ export async function createApp(root, { onSignOut = null } = {}) {
   }
 
   function openLibraryMore() {
-    const actions = [{ id: 'trash', label: 'Trash' }, { id: 'shortcuts', label: 'Keyboard shortcuts' }, { id: 'settings', label: 'Settings' }];
+    const actions = [
+      { id: 'select', label: 'Select' },
+      { id: 'trash', label: 'Trash' },
+      { id: 'shortcuts', label: 'Keyboard shortcuts' },
+      { id: 'settings', label: 'Settings' }
+    ];
     if (onSignOut) actions.push({ id: 'signout', label: 'Sign out' });
     openMoreMenu({
       actions,
       onAction: async id => {
-        if (id === 'trash') await showTrash();
+        if (id === 'select') await enterSelectionMode();
+        else if (id === 'trash') await showTrash();
         else if (id === 'shortcuts') openKeyboardShortcuts();
         else if (id === 'settings') openAppearance();
         else if (id === 'signout') await onSignOut?.();
@@ -414,23 +631,76 @@ export async function createApp(root, { onSignOut = null } = {}) {
     });
   }
 
-  async function showTrash() {
-    state.screen = 'trash';
+  async function batchRestoreFromTrash() {
+    const items = await selectedSnippets();
+    if (!items.length) return;
+    for (const item of items) await restoreSnippet(item.id);
+    await refreshAfterBatchMutation();
+    showToast(items.length === 1 ? 'Restored' : `${items.length} restored`);
+  }
+
+  async function batchDeleteFromTrash() {
+    const items = await selectedSnippets();
+    if (!items.length) return;
+    const message = items.length === 1
+      ? 'Delete this snippet permanently? This cannot be undone.'
+      : `Delete ${items.length} snippets permanently? This cannot be undone.`;
+    if (!window.confirm(message)) return;
+    for (const item of items) await deleteSnippetPermanently(item.id);
+    await refreshAfterBatchMutation();
+  }
+
+  async function leaveTrash() {
+    const destination = state.trashReturn;
+    state.trashReturn = null;
+    resetSelectionState();
+    if (destination?.screen === 'editor') {
+      await showEditor(destination.id || null);
+      return;
+    }
+    await showLibrary(destination?.scope || 'inbox');
+  }
+
+  async function renderTrash() {
     const items = (await listSnippets({ scope: 'trash' })).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
     renderTrashView(root, {
       items,
-      onBack: () => { state.screen = 'library'; renderLibrary(); },
-      onRestore: async id => { await restoreSnippet(id); await showTrash(); showToast('Restored'); },
+      selectionMode: state.selectionMode,
+      selectedIds: state.selectedIds,
+      onBack: () => leaveTrash(),
+      onRestore: async id => { await restoreSnippet(id); await renderTrash(); showToast('Restored'); },
       onDeletePermanently: async id => {
         if (!window.confirm('Delete this snippet permanently? This cannot be undone.')) return;
         await deleteSnippetPermanently(id);
-        await showTrash();
-      }
+        await renderTrash();
+      },
+      onSelect: () => enterSelectionMode(),
+      onStartSelection: id => enterSelectionMode(id),
+      onToggleSelection: id => toggleSelection(id),
+      onRangeSelect: id => rangeSelect(id),
+      onDoneSelection: () => finishSelection(),
+      onBatchRestore: () => batchRestoreFromTrash(),
+      onBatchDelete: () => batchDeleteFromTrash()
     });
+  }
+
+  async function showTrash() {
+    if (state.screen !== 'trash') {
+      state.trashReturn = {
+        screen: state.screen,
+        scope: state.libraryScope,
+        id: state.currentSnippet?.id || null
+      };
+      if (state.screen === 'editor') await leaveEditor();
+      resetSelectionState();
+      state.screen = 'trash';
+    }
+    await renderTrash();
   }
 
   async function handleGlobalShortcut(event) {
     if (document.body.dataset.shortcutCapture === 'true') return;
+    if (state.selectionMode && event.key === 'Escape') { event.preventDefault(); await finishSelection(); return; }
     const shortcuts = state.preferences.keyboardShortcuts || DEFAULT_SHORTCUTS;
     const action = Object.entries(shortcuts).find(([, shortcut]) => shortcutMatchesEvent(shortcut, event))?.[0];
     if (!action) return;
@@ -440,9 +710,11 @@ export async function createApp(root, { onSignOut = null } = {}) {
     else if (action === 'inbox') await switchLibraryScope('inbox');
     else if (action === 'starred') await switchLibraryScope('starred');
     else if (action === 'archive') await switchLibraryScope('archive');
+    else if (action === 'toggleStar' && state.selectionMode) await batchToggleStar();
     else if (action === 'toggleStar' && state.screen === 'editor') await toggleStar();
     else if (action === 'tags') {
-      if (state.screen === 'editor') await openEditorTags();
+      if (state.selectionMode && state.screen !== 'trash') await openBatchTags();
+      else if (state.screen === 'editor') await openEditorTags();
       else if (state.screen === 'library') await openLibraryTags();
     } else if (action === 'toggleSidebar') await toggleSidebar();
   }
