@@ -1,0 +1,13 @@
+{
+  "name": "snippets",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8765",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:browser": "bash scripts/run-browser-tests.sh",
+    "test": "npm run test:unit",
+    "build": "node scripts/build.js"
+  }
+}

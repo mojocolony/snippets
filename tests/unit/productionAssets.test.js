@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+async function text(path) { return readFile(new URL(`../../${path}`, import.meta.url), 'utf8').catch(() => ''); }
+
+const manifest = await text('manifest.webmanifest');
+const sw = await text('sw.js');
+const index = await text('index.html');
+const build = await text('scripts/build.js');
+
+test('production site declares installable PWA assets for GitHub Pages subpath', () => {
+  assert.match(manifest, /"name"\s*:\s*"Snippets"/);
+  assert.match(manifest, /"start_url"\s*:\s*"\.\/"/);
+  assert.match(manifest, /"display"\s*:\s*"standalone"/);
+  assert.match(index, /manifest\.webmanifest/);
+  assert.match(index, /apple-touch-icon/);
+});
+
+test('service worker uses relative scope and offline navigation fallback', () => {
+  assert.match(sw, /Snippets|snippets/i);
+  assert.match(sw, /\.\/index\.html/);
+  assert.match(sw, /addEventListener\(['"]fetch['"]/);
+});
+
+test('build copies production root assets and retains Supabase CDN import in standalone', () => {
+  assert.match(build, /manifest\.webmanifest/);
+  assert.match(build, /bookmarklets\.html/);
+  assert.match(build, /cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@2/);
+});

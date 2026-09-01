@@ -1,0 +1,41 @@
+:root {
+  --bg: #f8f8f6;
+  --surface: #efefec;
+  --paper: #fefefd;
+  --paper-edge: #e7e7e2;
+  --surface-strong: #e8e8e4;
+  --text: #171717;
+  --muted: #777773;
+  --faint: #aaa9a4;
+  --hairline: #deded9;
+  --overlay: rgba(0, 0, 0, .18);
+  --highlight: #e7dfb6;
+  --danger: #8e3b36;
+  --shadow: 0 10px 30px rgba(0, 0, 0, .08), 0 1px 4px rgba(0, 0, 0, .06);
+  --paper-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 16px 44px rgba(0, 0, 0, .035);
+  --editor-max: 920px;
+  --editor-text-max: 720px;
+  --library-max: 860px;
+  --radius: 13px;
+  --pill: 999px;
+  --ui-font: "iA Writer Duo", "iA Writer Duospace", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --editor-font: "iA Writer Duo", "iA Writer Duospace", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --editor-size: 18px;
+}
+
+html[data-theme="dark"] {
+  --bg: #101010;
+  --surface: #1c1c1b;
+  --paper: #171716;
+  --paper-edge: #262624;
+  --surface-strong: #252524;
+  --text: #ededeb;
+  --muted: #949491;
+  --faint: #666663;
+  --hairline: #2d2d2b;
+  --overlay: rgba(0, 0, 0, .48);
+  --highlight: #5a5335;
+  --danger: #d27870;
+  --shadow: 0 12px 34px rgba(0, 0, 0, .35), 0 1px 5px rgba(0, 0, 0, .28);
+  --paper-shadow: 0 1px 1px rgba(255, 255, 255, .015), 0 18px 48px rgba(0, 0, 0, .24);
+}

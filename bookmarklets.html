@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snippets Web Capture</title>
+  <link rel="stylesheet" href="./src/styles/tokens.css" />
+  <style>
+    body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 var(--ui-font);padding:48px 24px}
+    main{max-width:680px;margin:auto}h1{font-size:26px;margin:0 0 12px}p{color:var(--muted)}
+    .links{display:grid;gap:12px;margin:32px 0}.bookmarklet{display:block;padding:14px 16px;border:1px solid var(--hairline);border-radius:10px;background:var(--paper);color:var(--text);text-decoration:none}
+    code{font-family:var(--ui-font);font-size:13px}
+  </style>
+</head>
+<body><main>
+  <h1>Snippets Web Capture</h1>
+  <p>Drag these links to the bookmarks bar. Snippets must already be signed in for the smoothest capture.</p>
+  <div class="links" id="links"></div>
+  <p><strong>Save Link</strong> captures the page title and URL. <strong>Save Selection</strong> captures selected text plus its source. <strong>Save Page Text</strong> transfers the page text through a temporary browser window, so it is not limited by URL length.</p>
+<script>
+const APP='https://mojocolony.github.io/snippets/';
+function code(mode){
+  const text = mode==='selection' ? "String(getSelection())" : mode==='page' ? "document.body.innerText" : "''";
+  return `javascript:(()=>{const n=(crypto.randomUUID?.()||Date.now()+'-'+Math.random());const w=open('${APP}?captureSession='+encodeURIComponent(n),'_blank');const p={type:'snippets-capture',nonce:n,mode:'${mode}',title:document.title,url:location.href,text:${text}};let i=0;const t=setInterval(()=>{if(!w||w.closed||i++>120){clearInterval(t);return}w.postMessage(p,'https://mojocolony.github.io')},500)})()`;
+}
+for(const [label,mode] of [['Save Link','link'],['Save Selection','selection'],['Save Page Text','page']]){
+  const a=document.createElement('a');a.className='bookmarklet';a.textContent=label;a.href=code(mode);document.querySelector('#links').append(a);
+}
+</script></main></body></html>
