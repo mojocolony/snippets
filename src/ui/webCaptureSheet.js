@@ -2,7 +2,7 @@ import { createSheet } from './sheet.js';
 import { BOOKMARKLET_OPTIONS, createBookmarkletCode, resolveSnippetsAppUrl } from '../capture/bookmarklets.js';
 
 export function openWebCaptureSheet({ appUrl = resolveSnippetsAppUrl(window.location.href) } = {}) {
-  const sheet = createSheet({ title: 'Web Capture', className: 'web-capture-sheet' });
+  const sheet = createSheet({ title: 'Web Capture', className: 'web-capture-sheet', animateBackdrop: false });
 
   const intro = document.createElement('p');
   intro.className = 'web-capture-intro';
@@ -16,6 +16,9 @@ export function openWebCaptureSheet({ appUrl = resolveSnippetsAppUrl(window.loca
   hint.textContent = 'Drag a capture button to your bookmarks bar.';
 
   for (const option of BOOKMARKLET_OPTIONS) {
+    const row = document.createElement('div');
+    row.className = 'web-capture-option';
+
     const link = document.createElement('a');
     link.className = 'web-capture-bookmarklet';
     link.href = createBookmarkletCode(option.mode, appUrl);
@@ -25,16 +28,18 @@ export function openWebCaptureSheet({ appUrl = resolveSnippetsAppUrl(window.loca
     const label = document.createElement('span');
     label.className = 'web-capture-label';
     label.textContent = option.label;
+    link.append(label);
+
     const description = document.createElement('span');
     description.className = 'web-capture-description';
     description.textContent = option.description;
-    link.append(label, description);
 
     link.addEventListener('click', event => {
       event.preventDefault();
       hint.textContent = `Drag “${option.label}” to your bookmarks bar.`;
     });
-    options.append(link);
+    row.append(link, description);
+    options.append(row);
   }
   sheet.body.append(options, hint);
 

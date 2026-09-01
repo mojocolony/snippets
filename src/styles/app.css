@@ -525,6 +525,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   opacity: 0;
   animation: backdrop-in 120ms ease forwards;
 }
+.sheet-backdrop.sheet-backdrop-no-fade {
+  opacity: 1;
+  animation: none;
+}
+
 .sheet {
   width: min(100%, 430px);
   max-height: min(72dvh, 620px);
@@ -771,17 +776,22 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   gap: 5px;
   padding: 0 4px;
 }
-.web-capture-bookmarklet {
+.web-capture-option {
   display: grid;
   gap: 2px;
   min-height: 44px;
   padding: 8px 11px;
   border-radius: 9px;
+}
+.web-capture-option:hover { background: var(--surface); }
+.web-capture-bookmarklet {
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
   color: var(--text);
   text-decoration: none;
   cursor: grab;
 }
-.web-capture-bookmarklet:hover { background: var(--surface); }
 .web-capture-bookmarklet:active { cursor: grabbing; }
 .web-capture-label { font-size: 13px; font-weight: 600; }
 .web-capture-description { color: var(--muted); font-size: 11px; }

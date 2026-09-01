@@ -81,10 +81,21 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - **More → Web Capture** surfaces the existing bookmarklets directly inside Snippets.
 - Desktop users can drag **Save Link**, **Save Selection**, or **Save Page Text** from the in-app Web Capture sheet to the bookmarks bar.
 - iPhone/iPad users get a concise mobile note and a direct **Open Web Capture Setup** link instead of unusable drag controls.
-- The in-app panel and `bookmarklets.html` now share the same bookmarklet generator so capture behavior cannot drift between the two surfaces.
+- The in-app panel uses the shared bookmarklet generator; the standalone setup page ships literal bookmarklet links so it remains usable even when opened directly.
 
 ## Revision 4.4 — v0.4.4
 
 - Save Page Text now prefers semantic article/main content, removes common page chrome, and falls back to full body text.
 - Cmd/Ctrl-B and Cmd/Ctrl-I wrap or unwrap selected text with Markdown bold/italic markers.
 - Inline code, fenced code blocks, and javascript bookmarklet source are excluded from automatic URL linkification.
+
+
+## Revision 4.5 — v0.4.5
+
+- Web Capture no longer flashes the underlying page when opened from More. The replacement sheet uses an immediately opaque backdrop instead of replaying the backdrop fade-in.
+
+## Revision 4.6 — v0.4.6
+
+- Fixes the Save Page Text bookmarklet so its generated JavaScript is syntactically valid.
+- Dragged bookmarklet names now contain only the action label, not the descriptive subtitle.
+- `bookmarklets.html` now contains literal bookmarklet links and no longer depends on a runtime ES-module import to display them.

@@ -35,12 +35,10 @@ test('Web Capture sheet exposes all three existing bookmarklets and setup page',
   assert.match(sheetSource, /iPhone|iPad|mobile/i);
 });
 
-test('in-app Web Capture and bookmarklet setup page share one bookmarklet generator', () => {
+test('Web Capture uses the shared generator in-app and the setup page ships literal fallbacks', () => {
   assert.match(bookmarkletSource, /BOOKMARKLET_OPTIONS/);
   assert.match(bookmarkletSource, /createBookmarkletCode/);
-  assert.match(bookmarkletPage, /src\/capture\/bookmarklets\.js/);
-  assert.match(bookmarkletPage, /BOOKMARKLET_OPTIONS/);
-  assert.match(bookmarkletPage, /createBookmarkletCode/);
+  assert.ok((bookmarkletPage.match(/href=["']javascript:/gi) || []).length >= 3);
   assert.match(buildSource, /src\/capture\/bookmarklets\.js/);
   assert.match(buildSource, /src\/ui\/webCaptureSheet\.js/);
 });

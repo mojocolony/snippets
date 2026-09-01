@@ -15,16 +15,10 @@
 <body><main>
   <h1>Snippets Web Capture</h1>
   <p>Drag these links to the bookmarks bar. Snippets must already be signed in for the smoothest capture.</p>
-  <div class="links" id="links"></div>
-  <p><strong>Save Link</strong> captures the page title and URL. <strong>Save Selection</strong> captures selected text plus its source. <strong>Save Page Text</strong> transfers the page text through a temporary browser window, so it is not limited by URL length.</p>
-<script type="module">
-import { BOOKMARKLET_OPTIONS, createBookmarkletCode, resolveSnippetsAppUrl } from './src/capture/bookmarklets.js';
-const appUrl = resolveSnippetsAppUrl(location.href);
-for (const option of BOOKMARKLET_OPTIONS) {
-  const a = document.createElement('a');
-  a.className = 'bookmarklet';
-  a.textContent = option.label;
-  a.href = createBookmarkletCode(option.mode, appUrl);
-  document.querySelector('#links').append(a);
-}
-</script></main></body></html>
+  <div class="links" id="links">
+    <a class="bookmarklet" href="javascript:(()=&gt;{const n=(crypto.randomUUID?.()||Date.now()+'-'+Math.random());const w=open(&quot;https://mojocolony.github.io/snippets/?captureSession=&quot;+encodeURIComponent(n),'_blank');const p={type:'snippets-capture',nonce:n,mode:'link',title:document.title,url:location.href,text:''};let i=0;const t=setInterval(()=&gt;{if(!w||w.closed||i++&gt;120){clearInterval(t);return}w.postMessage(p,&quot;https://mojocolony.github.io&quot;)},500)})()">Save Link</a>
+    <a class="bookmarklet" href="javascript:(()=&gt;{const n=(crypto.randomUUID?.()||Date.now()+'-'+Math.random());const w=open(&quot;https://mojocolony.github.io/snippets/?captureSession=&quot;+encodeURIComponent(n),'_blank');const p={type:'snippets-capture',nonce:n,mode:'selection',title:document.title,url:location.href,text:String(getSelection())};let i=0;const t=setInterval(()=&gt;{if(!w||w.closed||i++&gt;120){clearInterval(t);return}w.postMessage(p,&quot;https://mojocolony.github.io&quot;)},500)})()">Save Selection</a>
+    <a class="bookmarklet" href="javascript:(()=&gt;{const n=(crypto.randomUUID?.()||Date.now()+'-'+Math.random());const w=open(&quot;https://mojocolony.github.io/snippets/?captureSession=&quot;+encodeURIComponent(n),'_blank');const p={type:'snippets-capture',nonce:n,mode:'page',title:document.title,url:location.href,text:(()=&gt;{const q='article,[itemprop=&quot;articleBody&quot;],main,[role=&quot;main&quot;]';const c=[...document.querySelectorAll(q)].filter(e=&gt;(e.innerText||'').trim().length&gt;200).sort((a,b)=&gt;(b.innerText||'').length-(a.innerText||'').length)[0]||document.body;const x=c.cloneNode(true);x.querySelectorAll('nav,footer,aside,script,style,noscript,form,button,svg,canvas,[aria-hidden=&quot;true&quot;]').forEach(e=&gt;e.remove());Object.assign(x.style,{position:'fixed',left:'-100000px',top:'0',width:'800px',opacity:'0',pointerEvents:'none'});document.body.appendChild(x);const t=(x.innerText||x.textContent||'').replace(/\n{3,}/g,'\n\n').trim();x.remove();return t||document.body.innerText})()};let i=0;const t=setInterval(()=&gt;{if(!w||w.closed||i++&gt;120){clearInterval(t);return}w.postMessage(p,&quot;https://mojocolony.github.io&quot;)},500)})()">Save Page Text</a>
+  </div>
+  <p><strong>Save Link</strong> captures the page title and URL. <strong>Save Selection</strong> captures selected text plus its source. <strong>Save Page Text</strong> captures the main article or page text plus its source.</p>
+</main></body></html>
