@@ -650,6 +650,17 @@ export async function createApp(root, { onSignOut = null } = {}) {
     await refreshAfterBatchMutation();
   }
 
+  async function deleteAllTrash() {
+    const items = await listSnippets({ scope: 'trash' });
+    if (!items.length) return;
+    const noun = items.length === 1 ? 'snippet' : 'snippets';
+    if (!window.confirm(`Delete all ${items.length} ${noun} permanently? This cannot be undone.`)) return;
+    for (const item of items) await deleteSnippetPermanently(item.id);
+    resetSelectionState();
+    await renderTrash();
+    showToast('Trash emptied');
+  }
+
   async function leaveTrash() {
     const destination = state.trashReturn;
     state.trashReturn = null;
@@ -669,6 +680,7 @@ export async function createApp(root, { onSignOut = null } = {}) {
       selectedIds: state.selectedIds,
       onBack: () => leaveTrash(),
       onRestore: async id => { await restoreSnippet(id); await renderTrash(); showToast('Restored'); },
+      onDeleteAll: () => deleteAllTrash(),
       onDeletePermanently: async id => {
         if (!window.confirm('Delete this snippet permanently? This cannot be undone.')) return;
         await deleteSnippetPermanently(id);

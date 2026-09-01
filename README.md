@@ -69,3 +69,9 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Batch tag assignment shows mixed tag states and can apply or remove a tag across the whole selection.
 - Trash is consistently available from **More → Trash**, including from the desktop editor, and Trash supports batch restore and permanent deletion.
 - The star / tags / add-tag metadata strip stays sticky while the note scrolls.
+
+## Revision 4.2 — v0.4.2
+
+- The normal and multi-select bottom toolbars now use the same Lucide-style SVG icon geometry, including matching Star size, stroke, alignment, and control spacing.
+- The normal editor toolbar now uses SVG Menu, Tag, Star, Share, and Ellipsis icons; the library toolbar uses SVG Plus, Tag, Search, and Ellipsis icons. `Aa` remains text.
+- Trash now includes **Delete All** when it contains items. The action requires explicit confirmation and permanently deletes every item currently in Trash.

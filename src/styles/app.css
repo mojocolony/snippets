@@ -349,7 +349,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .control-button:hover { background: var(--surface-strong); color: var(--text); }
 .control-button.is-danger { color: var(--danger); }
 .batch-control-strip { min-width: 0; }
-.batch-action-icon { width: 20px; height: 20px; display: block; }
+.toolbar-action-icon { width: 20px; height: 20px; display: block; }
 .batch-count {
   min-width: 34px;
   padding: 0 7px;
@@ -382,7 +382,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .control-button.is-active { background: var(--surface-strong); color: var(--text); }
 .control-button[disabled] { opacity: .28; cursor: default; }
 .control-button.control-aa { font-size: 13px; letter-spacing: -.05em; }
-.control-button.control-more { letter-spacing: .12em; padding-left: 12px; }
+.control-button.control-more { padding-left: 10px; }
+.control-button[data-action="star"].is-active .toolbar-action-icon { fill: currentColor; }
 
 .library-inner, .trash-inner {
   width: min(calc(100% - 48px), var(--library-max));
@@ -593,7 +594,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .app-version { padding: 18px 8px 4px; color: var(--faint); font-size: 10px; text-align: center; }
 
 .trash-header { display: flex; align-items: center; gap: 8px; padding: 4px 0 18px; }
-.trash-select-button { margin-left: auto; width: auto; padding: 0 10px; font-size: 11px; }
+.trash-header-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.trash-select-button, .trash-delete-all-button { width: auto; padding: 0 10px; font-size: 11px; }
+.trash-delete-all-button { color: var(--danger); }
 .trash-title { font-size: 15px; font-weight: 600; }
 .trash-row {
   display: grid;

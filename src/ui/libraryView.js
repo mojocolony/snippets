@@ -97,11 +97,11 @@ export function renderLibraryView(root, {
         <section class="library-list" data-testid="library-list"></section>
       </div>
       ${selectionMode ? batchStripMarkup(selected.size) : `<nav class="control-strip" data-testid="control-strip" aria-label="Library controls">
-        <button class="control-button" data-action="new" aria-label="New" title="New">＋</button>
-        <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">#</button>
-        <button class="control-button" data-action="search" aria-label="Search" title="Search">⌕</button>
+        <button class="control-button" data-action="new" aria-label="New" title="New">${batchIconMarkup('plus')}</button>
+        <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">${batchIconMarkup('tag')}</button>
+        <button class="control-button" data-action="search" aria-label="Search" title="Search">${batchIconMarkup('search')}</button>
         <button class="control-button control-aa" data-action="appearance" aria-label="Appearance" title="Appearance">Aa</button>
-        <button class="control-button control-more" data-action="more" aria-label="More" title="More">•••</button>
+        <button class="control-button control-more" data-action="more" aria-label="More" title="More">${batchIconMarkup('ellipsis')}</button>
       </nav>`}
     </main>`;
   const header = root.querySelector('.library-header');

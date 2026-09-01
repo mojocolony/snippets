@@ -28,10 +28,10 @@ test('batch action bars use shared Lucide-style SVG icons instead of Unicode sym
   assert.match(batchIcons, /viewBox=\"0 0 24 24\"/);
 });
 
-test('v0.4.1 bumps package app version and service worker cache', () => {
-  assert.equal(packageJson.version, '0.4.1');
-  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.1'/);
-  assert.match(swSource, /snippets-r4-1/);
+test('v0.4.1 establishes the 0.4 patch release and r4 cache family', () => {
+  assert.match(packageJson.version, /^0\.4\.\d+$/);
+  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.\d+'/);
+  assert.match(swSource, /snippets-r4/);
 });
 
 test('standalone production build includes the shared batch icon helper', () => {

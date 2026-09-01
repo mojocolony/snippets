@@ -39,7 +39,7 @@ function batchStripMarkup(count) {
 
 export function renderTrashView(root, {
   items = [], selectionMode = false, selectedIds = new Set(),
-  onBack = () => {}, onRestore = () => {}, onDeletePermanently = () => {},
+  onBack = () => {}, onRestore = () => {}, onDeletePermanently = () => {}, onDeleteAll = () => {},
   onStartSelection = () => {}, onToggleSelection = () => {}, onRangeSelect = () => {},
   onSelect = () => {}, onDoneSelection = () => {}, onBatchRestore = () => {}, onBatchDelete = () => {}
 } = {}) {
@@ -50,7 +50,10 @@ export function renderTrashView(root, {
         <header class="trash-header">
           <button class="quiet-button" data-action="back" aria-label="Back">←</button>
           <div class="trash-title">Trash</div>
-          <button class="quiet-button trash-select-button" data-action="select" aria-label="Select snippets">${selectionMode ? 'Done' : 'Select'}</button>
+          <div class="trash-header-actions">
+            ${items.length && !selectionMode ? '<button class="quiet-button trash-delete-all-button" data-action="delete-all" aria-label="Delete all snippets permanently">Delete All</button>' : ''}
+            <button class="quiet-button trash-select-button" data-action="select" aria-label="Select snippets">${selectionMode ? 'Done' : 'Select'}</button>
+          </div>
         </header>
         <section class="trash-list"></section>
       </div>
@@ -58,6 +61,7 @@ export function renderTrashView(root, {
     </main>`;
   root.querySelector('[data-action="back"]').addEventListener('click', onBack);
   root.querySelector('[data-action="select"]').addEventListener('click', selectionMode ? onDoneSelection : onSelect);
+  root.querySelector('[data-action="delete-all"]')?.addEventListener('click', onDeleteAll);
   const list = root.querySelector('.trash-list');
   if (!items.length) {
     const empty = document.createElement('div');

@@ -168,12 +168,12 @@ export function renderEditorView(root, {
           <section class="editor-sheet" aria-label="Snippet"><div id="markdown-editor-host"></div></section>
         </div>
         <nav class="control-strip normal-control-strip" data-testid="control-strip" aria-label="Snippet controls">
-          <button class="control-button" data-action="library" aria-label="Library" title="Library">☰</button>
-          <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">#</button>
-          <button class="control-button" data-action="star" aria-label="Star" title="Star">☆</button>
+          <button class="control-button" data-action="library" aria-label="Library" title="Library">${batchIconMarkup('menu')}</button>
+          <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">${batchIconMarkup('tag')}</button>
+          <button class="control-button" data-action="star" aria-label="Star" title="Star">${batchIconMarkup('star')}</button>
           <button class="control-button control-aa" data-action="appearance" aria-label="Appearance" title="Appearance">Aa</button>
-          <button class="control-button" data-action="share" aria-label="Share" title="Share">↑</button>
-          <button class="control-button control-more" data-action="more" aria-label="More" title="More">•••</button>
+          <button class="control-button" data-action="share" aria-label="Share" title="Share">${batchIconMarkup('share')}</button>
+          <button class="control-button control-more" data-action="more" aria-label="More" title="More">${batchIconMarkup('ellipsis')}</button>
         </nav>
         ${batchStripMarkup(selectionIds.size)}
       </section>
@@ -210,7 +210,6 @@ export function renderEditorView(root, {
     snippet = nextSnippet;
     const starred = Boolean(snippet?.starred);
     const starLabel = starred ? 'Unstar' : 'Star';
-    star.textContent = starred ? '★' : '☆';
     star.classList.toggle('is-active', starred);
     star.setAttribute('aria-label', starLabel);
     metaStar.classList.toggle('is-active', starred);
