@@ -175,8 +175,12 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   palette.hidden = true;
   let paletteKeyboardAccessory = null;
 
-  function formattingButtonMarkup(action) {
+  function formattingButtonMarkup(action, { keyboardAccessory = false } = {}) {
     if (action === 'todo') return `<button type="button" class="formatting-button formatting-todo" data-format-action="todo" aria-label="Todo" title="Todo"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg></button>`;
+    if (keyboardAccessory && action === 'highlight') return `<button type="button" class="formatting-button formatting-highlight" data-format-action="highlight" aria-label="Highlight" title="Highlight"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 12h12"></path><path d="M6 20V4"></path><path d="M18 20V4"></path></svg></button>`;
+    if (keyboardAccessory && action === 'bold') return `<button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"></path></svg></button>`;
+    if (keyboardAccessory && action === 'italic') return `<button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="19" x2="10" y1="4" y2="4"></line><line x1="14" x2="5" y1="20" y2="20"></line><line x1="15" x2="9" y1="4" y2="20"></line></svg></button>`;
+    if (keyboardAccessory && action === 'strike') return `<button type="button" class="formatting-button formatting-strike" data-format-action="strike" aria-label="Strikethrough" title="Strikethrough"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M16 4H9a3 3 0 0 0-2.83 4"></path><path d="M14 12a4 4 0 0 1 0 8H6"></path><line x1="4" x2="20" y1="12" y2="12"></line></svg></button>`;
     if (action === 'highlight') return `<button type="button" class="formatting-button formatting-highlight" data-format-action="highlight" aria-label="Highlight" title="Highlight">H</button>`;
     if (action === 'bold') return `<button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>`;
     if (action === 'italic') return `<button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><em>I</em></button>`;
@@ -189,7 +193,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   function syncFormattingPaletteActions(keyboardAccessory) {
     if (paletteKeyboardAccessory === keyboardAccessory) return;
     paletteKeyboardAccessory = keyboardAccessory;
-    palette.innerHTML = formattingActionsForLayout({ keyboardAccessory }).map(formattingButtonMarkup).join('');
+    palette.innerHTML = formattingActionsForLayout({ keyboardAccessory }).map(action => formattingButtonMarkup(action, { keyboardAccessory })).join('');
   }
 
   syncFormattingPaletteActions(false);

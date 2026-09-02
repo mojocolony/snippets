@@ -155,3 +155,10 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Changes the iOS selected-text keyboard toolbar to Todo, Highlight, Bold, Italic, Strikethrough, and Link.
 - Uses Lucide-style Check and Link icons for the symbolic toolbar actions.
 - Removes Code from the iOS keyboard toolbar while preserving Code in the desktop selection palette.
+
+
+## Revision 4.16 — v0.4.16
+
+- Uses Lucide Heading, Bold, Italic, and Strikethrough icons in the iOS/iPadOS selected-text keyboard toolbar, alongside the existing Lucide Check and Link icons.
+- Keeps the underlying actions and order unchanged: Todo, Highlight, Bold, Italic, Strikethrough, Link.
+- Desktop retains its existing floating selection controls.

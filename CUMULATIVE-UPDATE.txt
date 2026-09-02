@@ -1,5 +1,5 @@
-Snippets v0.4.15 cumulative update
+Snippets v0.4.16 cumulative update
 
-This update is cumulative from v0.4.8. You may overlay these files onto a Snippets repository at v0.4.8 or any later 0.4.x release through v0.4.14.
+This update is cumulative from v0.4.8. You may overlay these files onto a Snippets repository at v0.4.8 or any later 0.4.x release through v0.4.15.
 
-It includes the password-first authentication/editor restructuring from v0.4.9, Share/selection formatting from v0.4.10, toolbar/focus cleanup from v0.4.11, Todo/Backspace corrections from v0.4.12, the v0.4.13 upper-toolbar Todo control and remembered caret/selection target, the v0.4.14 iOS/iPadOS Craft-style keyboard formatting bar with VisualViewport tracking and pointer-down selection preservation, and the v0.4.15 iOS selection-toolbar action update: Todo, Highlight, Bold, Italic, Strikethrough, and Link, using Lucide-style Check and Link icons while retaining Code on desktop.
+It includes the password-first authentication/editor restructuring from v0.4.9, Share/selection formatting from v0.4.10, toolbar/focus cleanup from v0.4.11, Todo/Backspace corrections from v0.4.12, the v0.4.13 upper-toolbar Todo control and remembered caret/selection target, the v0.4.14 iOS/iPadOS Craft-style keyboard formatting bar with VisualViewport tracking and pointer-down selection preservation, the v0.4.15 iOS selection-toolbar action update (Todo, Highlight, Bold, Italic, Strikethrough, Link), and the v0.4.16 Lucide Heading, Bold, Italic, and Strikethrough icon treatment for the iOS/iPadOS selection toolbar. Desktop selection controls remain unchanged.

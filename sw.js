@@ -1,4 +1,4 @@
-const CACHE = 'snippets-r4-15';
+const CACHE = 'snippets-r4-16';
 const CORE = [
   './', './index.html', './bookmarklets.html', './manifest.webmanifest',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png',
