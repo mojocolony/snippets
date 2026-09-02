@@ -5,7 +5,7 @@ import { enqueueSyncOperation } from '../cloud/syncQueue.js';
 export const DEFAULT_PREFERENCES = Object.freeze({
   themeMode: 'system',
   editorFont: 'ia-writer-duo',
-  fontSize: 18,
+  fontSize: 20,
   returnWindow: '60s',
   sidebarCollapsed: false,
   keyboardShortcuts: { ...DEFAULT_SHORTCUTS }

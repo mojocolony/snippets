@@ -125,12 +125,12 @@ test('metadata controls avoid native browser title tooltips', () => {
   assert.doesNotMatch(metaBlock[0], /title=/);
 });
 
-test('Revision 1 gives iPhone library and toolbar typography true mobile sizes', () => {
-  assert.match(responsive, /@media \(max-width: 719px\)[\s\S]*?\.segmented button\s*\{[^}]*min-height:\s*42px[^}]*font-size:\s*18px/);
-  assert.match(responsive, /@media \(max-width: 719px\)[\s\S]*?\.library-title\s*\{[^}]*font-size:\s*18px/);
-  assert.match(responsive, /@media \(max-width: 719px\)[\s\S]*?\.library-preview\s*\{[^}]*font-size:\s*16px/);
-  assert.match(responsive, /@media \(max-width: 719px\)[\s\S]*?\.library-tags \.tag-chip\s*\{[^}]*font-size:\s*15px/);
-  assert.match(responsive, /@media \(max-width: 719px\)[\s\S]*?\.library-modified\s*\{[^}]*font-size:\s*14px/);
-  assert.match(responsive, /@media \(max-width: 719px\)[\s\S]*?\.control-button\s*\{[^}]*min-width:\s*52px[^}]*height:\s*52px[^}]*font-size:\s*22px/);
-  assert.match(responsive, /@media \(max-width: 719px\)[\s\S]*?\.control-button\.control-aa\s*\{[^}]*font-size:\s*18px/);
+test('Revision 1 gives compact mobile and tablet library and toolbar typography true mobile sizes', () => {
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.segmented button\s*\{[^}]*min-height:\s*42px[^}]*font-size:\s*18px/);
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.library-title\s*\{[^}]*font-size:\s*18px/);
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.library-preview\s*\{[^}]*font-size:\s*16px/);
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.library-tags \.tag-chip\s*\{[^}]*font-size:\s*15px/);
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.library-modified\s*\{[^}]*font-size:\s*14px/);
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.control-button\s*\{[^}]*min-width:\s*52px[^}]*height:\s*52px[^}]*font-size:\s*22px/);
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.control-button\.control-aa\s*\{[^}]*font-size:\s*18px/);
 });

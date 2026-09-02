@@ -11,8 +11,9 @@ test('editor uses a sheet surface instead of a focused textbox outline', () => {
   assert.doesNotMatch(css, /\[contenteditable="true"\]:focus-visible/);
 });
 
-test('mobile editor sheet becomes edge-to-edge rather than a floating card', () => {
-  assert.match(responsive, /@media \(max-width: 719px\)[\s\S]*?\.editor-sheet\s*\{[\s\S]*?border-radius:\s*0/);
+test('mobile and compact-tablet editor sheet becomes edge-to-edge rather than a floating card', () => {
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.editor-wrap\s*\{[\s\S]*?width:\s*100%/);
+  assert.match(responsive, /@media \(max-width: 899px\)[\s\S]*?\.editor-sheet\s*\{[\s\S]*?border-radius:\s*0/);
 });
 
 test('completed todo remains struck through while its text has focus', () => {

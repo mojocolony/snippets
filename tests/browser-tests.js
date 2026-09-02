@@ -143,5 +143,27 @@ await test('checking a todo strikes its text through immediately', async () => {
   host.remove();
 });
 
+
+
+await test('editor uses one editing host so selection can span hard-newline lines', async () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const editor = mountMarkdownEditor(host, { value: 'ARCHIVE\nTHE TALK SHOW\nParagraph text' });
+  assert(host.isContentEditable, 'markdown editor is the editing host');
+  const lines = [...host.querySelectorAll('.editor-line-text')];
+  assert(lines.length === 3, 'three rendered hard-newline lines');
+  assert(lines.every(line => !line.hasAttribute('contenteditable')), 'line nodes inherit one editing host');
+  const range = document.createRange();
+  range.setStart(lines[0].firstChild, 0);
+  range.setEnd(lines[1].firstChild, lines[1].firstChild.textContent.length);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  assert(selection.toString().includes('ARCHIVE'), 'selection includes first line');
+  assert(selection.toString().includes('THE TALK SHOW'), 'selection includes second line');
+  editor.destroy();
+  host.remove();
+});
+
 summaryEl.textContent = results.every(result => result.ok) ? `PASS ${results.length}` : `FAIL ${results.filter(r => !r.ok).length}/${results.length}`;
 document.documentElement.dataset.tests = results.every(result => result.ok) ? 'pass' : 'fail';

@@ -24,3 +24,18 @@ test('old snippet returns to Inbox outside configured return window', () => {
     { type: 'inbox' }
   );
 });
+
+
+test('capture-first mobile launch opens blank even when recent snippets exist', () => {
+  assert.deepEqual(
+    chooseLaunchTarget({ snippets: [snippet('a', 99_000)], now: 100_000, returnWindow: '60s', captureFirst: true }),
+    { type: 'blank' }
+  );
+});
+
+test('pinned snippet still overrides capture-first mobile launch', () => {
+  assert.deepEqual(
+    chooseLaunchTarget({ snippets: [snippet('p', 1, true), snippet('a', 99_000)], now: 100_000, captureFirst: true }),
+    { type: 'snippet', id: 'p' }
+  );
+});

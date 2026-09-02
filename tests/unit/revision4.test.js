@@ -66,7 +66,7 @@ test('editor metadata strip stays sticky below navigation while the note scrolls
   assert.match(metaRule[1], /position:\s*sticky/);
   assert.match(metaRule[1], /z-index:/);
   assert.match(responsiveCss, /\.desktop-main \.editor-meta-strip\s*\{[\s\S]*?top:\s*58px/);
-  assert.match(responsiveCss, /@media \(max-width: 719px\)[\s\S]*?\.editor-meta-strip\s*\{[\s\S]*?top:\s*0/);
+  assert.match(responsiveCss, /@media \(max-width: 899px\)[\s\S]*?\.editor-meta-strip\s*\{[\s\S]*?top:\s*0/);
 });
 
 test('Revision 4 stays on the 0.4 release line and uses the r4 PWA cache family', () => {

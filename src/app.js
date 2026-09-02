@@ -740,7 +740,11 @@ export async function createApp(root, { onSignOut = null } = {}) {
   document.addEventListener('keydown', handleGlobalShortcut);
 
   const initialSnippets = await listSnippets({ scope: 'all' });
-  const target = chooseLaunchTarget({ snippets: initialSnippets, returnWindow: state.preferences.returnWindow });
+  const target = chooseLaunchTarget({
+    snippets: initialSnippets,
+    returnWindow: state.preferences.returnWindow,
+    captureFirst: !isDesktop()
+  });
   if (target.type === 'snippet') await showEditor(target.id);
   else if (target.type === 'inbox') await showLibrary('inbox');
   else await showEditor(null);

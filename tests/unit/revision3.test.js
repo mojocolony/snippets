@@ -44,9 +44,10 @@ test('starred snippets sort before unstarred snippets and then by modified time'
 });
 
 test('editing only leaves raw Markdown on the active line', () => {
+  assert.match(editorSource, /let activeLineIndex\s*=\s*null/);
   assert.match(editorSource, /function renderLine\(index\)/);
-  assert.match(editorSource, /span\.addEventListener\('blur',[\s\S]*?renderLine\(index\)/);
-  assert.doesNotMatch(editorSource, /if \(!destroyed && !host\.contains\(document\.activeElement\)\) render\(\)/);
+  assert.match(editorSource, /index === activeLineIndex/);
+  assert.match(editorSource, /classList\.add\('is-editing'\)/);
 });
 
 test('todo drag handle uses a Lucide-style SVG instead of a text glyph pseudo-element', () => {

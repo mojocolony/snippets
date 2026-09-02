@@ -7,10 +7,11 @@ export const RETURN_WINDOWS = Object.freeze({
   always: Number.POSITIVE_INFINITY
 });
 
-export function chooseLaunchTarget({ snippets = [], now = Date.now(), returnWindow = '60s' } = {}) {
+export function chooseLaunchTarget({ snippets = [], now = Date.now(), returnWindow = '60s', captureFirst = false } = {}) {
   const live = snippets.filter(snippet => snippet && snippet.deletedAt == null);
   const pinned = live.find(snippet => snippet.pinned);
   if (pinned) return { type: 'snippet', id: pinned.id };
+  if (captureFirst) return { type: 'blank' };
 
   const latest = [...live].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
   if (!latest) return { type: 'blank' };

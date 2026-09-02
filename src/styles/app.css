@@ -267,7 +267,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .editor-line-text.is-editing { color: var(--text); }
 .bullet-marker { color: var(--faint); text-align: center; user-select: none; }
 .bullet-marker::before { content: "•"; }
-.editor-line--bullet:focus-within .bullet-marker { visibility: hidden; }
+.editor-line--bullet:focus-within .bullet-marker, .editor-line--bullet.is-editing .bullet-marker { visibility: hidden; }
 .todo-check-slot {
   width: 25px;
   height: 1.66em;

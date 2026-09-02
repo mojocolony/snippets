@@ -99,3 +99,10 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Fixes the Save Page Text bookmarklet so its generated JavaScript is syntactically valid.
 - Dragged bookmarklet names now contain only the action label, not the descriptive subtitle.
 - `bookmarklets.html` now contains literal bookmarklet links and no longer depends on a runtime ES-module import to display them.
+
+## Revision 4.7 — v0.4.7
+
+- iPhone and iPad now launch into a fresh blank snippet for capture-first use, unless a snippet is pinned. Desktop keeps the existing **Time to return to Inbox** behavior.
+- Compact tablet widths below 900px now use the readable mobile/tablet layout, including an edge-to-edge editor, larger controls, and larger library text.
+- New installs default to a 20px editor size while existing explicit Appearance choices remain respected.
+- The Markdown editor now uses one continuous editing surface, so text selection can span hard-newline lines instead of stopping at each rendered line.
