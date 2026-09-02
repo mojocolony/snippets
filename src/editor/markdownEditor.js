@@ -3,7 +3,7 @@ import { applyEditorLineInput, backspaceAtLineStart, splitLineAt, toggleTodoAtLi
 import { moveLine } from './todoReorder.js';
 import { isSelectAllShortcut } from './editorNavigation.js';
 import { applyInlineFormat, shouldShowFormattingPalette, toggleTodoLines } from './selectionFormatting.js';
-import { keyboardAccessoryGeometry, shouldAnchorFormattingBarToKeyboard, shouldUseKeyboardFormattingBar } from './formattingViewport.js';
+import { formattingActionsForLayout, keyboardAccessoryGeometry, shouldAnchorFormattingBarToKeyboard, shouldUseKeyboardFormattingBar } from './formattingViewport.js';
 
 function offsetWithin(element, container, containerOffset) {
   if (!element || !container || !element.contains(container)) return 0;
@@ -173,13 +173,26 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   palette.setAttribute('role', 'toolbar');
   palette.setAttribute('aria-label', 'Text formatting');
   palette.hidden = true;
-  palette.innerHTML = `
-    <button type="button" class="formatting-button formatting-highlight" data-format-action="highlight" aria-label="Highlight" title="Highlight">H</button>
-    <button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
-    <button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><em>I</em></button>
-    <button type="button" class="formatting-button formatting-strike" data-format-action="strike" aria-label="Strikethrough" title="Strikethrough">S</button>
-    <button type="button" class="formatting-button formatting-code" data-format-action="code" aria-label="Code" title="Code">&lt;/&gt;</button>
-    <button type="button" class="formatting-button formatting-link" data-format-action="link" aria-label="Link" title="Link">↗</button>`;
+  let paletteKeyboardAccessory = null;
+
+  function formattingButtonMarkup(action) {
+    if (action === 'todo') return `<button type="button" class="formatting-button formatting-todo" data-format-action="todo" aria-label="Todo" title="Todo"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg></button>`;
+    if (action === 'highlight') return `<button type="button" class="formatting-button formatting-highlight" data-format-action="highlight" aria-label="Highlight" title="Highlight">H</button>`;
+    if (action === 'bold') return `<button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>`;
+    if (action === 'italic') return `<button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><em>I</em></button>`;
+    if (action === 'strike') return `<button type="button" class="formatting-button formatting-strike" data-format-action="strike" aria-label="Strikethrough" title="Strikethrough">S</button>`;
+    if (action === 'code') return `<button type="button" class="formatting-button formatting-code" data-format-action="code" aria-label="Code" title="Code">&lt;/&gt;</button>`;
+    if (action === 'link') return `<button type="button" class="formatting-button formatting-link" data-format-action="link" aria-label="Link" title="Link"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></button>`;
+    return '';
+  }
+
+  function syncFormattingPaletteActions(keyboardAccessory) {
+    if (paletteKeyboardAccessory === keyboardAccessory) return;
+    paletteKeyboardAccessory = keyboardAccessory;
+    palette.innerHTML = formattingActionsForLayout({ keyboardAccessory }).map(formattingButtonMarkup).join('');
+  }
+
+  syncFormattingPaletteActions(false);
   host.replaceChildren(gutter, surface, palette);
 
   function notify() { if (!destroyed) onChange(doc); }
@@ -494,6 +507,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       viewportHeight
     });
     palette.classList.toggle('is-keyboard-accessory', useKeyboardAccessory);
+    syncFormattingPaletteActions(useKeyboardAccessory);
 
     if (useKeyboardAccessory) {
       const viewport = visualViewport || {

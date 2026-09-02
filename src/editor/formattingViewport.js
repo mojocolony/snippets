@@ -1,5 +1,13 @@
 const DEFAULT_KEYBOARD_THRESHOLD = 120;
 
+
+const DESKTOP_FORMATTING_ACTIONS = Object.freeze(['highlight', 'bold', 'italic', 'strike', 'code', 'link']);
+const KEYBOARD_FORMATTING_ACTIONS = Object.freeze(['todo', 'highlight', 'bold', 'italic', 'strike', 'link']);
+
+export function formattingActionsForLayout({ keyboardAccessory = false } = {}) {
+  return [...(keyboardAccessory ? KEYBOARD_FORMATTING_ACTIONS : DESKTOP_FORMATTING_ACTIONS)];
+}
+
 function number(value, fallback = 0) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;

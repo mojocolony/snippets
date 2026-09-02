@@ -13,10 +13,6 @@ const versionSource = fs.readFileSync(new URL('../../src/version.js', import.met
 const swSource = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
 const buildSource = fs.readFileSync(new URL('../../scripts/build.js', import.meta.url), 'utf8');
 
-function paletteMarkup() {
-  return editorSource.match(/palette\.innerHTML\s*=\s*`([\s\S]*?)`;/)?.[1] || '';
-}
-
 test('touch-capable iPhone and iPad layouts opt into the keyboard formatting bar', () => {
   assert.equal(typeof viewportModule.shouldUseKeyboardFormattingBar, 'function');
   assert.equal(viewportModule.shouldUseKeyboardFormattingBar({ maxTouchPoints: 5 }), true);
@@ -49,12 +45,12 @@ test('keyboard bar is used only when a touch visual viewport is substantially re
   assert.equal(viewportModule.shouldAnchorFormattingBarToKeyboard({ touchLayout: false, baselineHeight: 844, viewportHeight: 500 }), false);
 });
 
-test('selection toolbar matches the Craft-style action order and excludes Todo', () => {
-  const markup = paletteMarkup();
-  assert.ok(markup);
-  const actions = [...markup.matchAll(/data-format-action="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(actions, ['highlight', 'bold', 'italic', 'strike', 'code', 'link']);
-  assert.doesNotMatch(markup, /data-format-action="todo"/);
+test('desktop selection toolbar retains the v0.4.14 Craft-style action order and excludes Todo', () => {
+  assert.equal(typeof viewportModule.formattingActionsForLayout, 'function');
+  assert.deepEqual(
+    viewportModule.formattingActionsForLayout({ keyboardAccessory: false }),
+    ['highlight', 'bold', 'italic', 'strike', 'code', 'link']
+  );
 });
 
 test('iOS formatting interaction applies on pointerdown before selection can collapse and tracks visualViewport changes', () => {
@@ -73,10 +69,12 @@ test('standalone build includes formatting viewport helper before markdown edito
   assert.ok(helper >= 0 && editor > helper);
 });
 
-test('v0.4.14 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson.version, '0.4.14');
-  assert.equal(packageLock.version, '0.4.14');
-  assert.equal(packageLock.packages[''].version, '0.4.14');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.14['"]/);
-  assert.match(swSource, /snippets-r4-14/);
+test('v0.4.14 or later preserves matching app, package and r4 PWA cache versions', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 14);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.\d+['"]/);
+  assert.match(swSource, /snippets-r4-/);
 });

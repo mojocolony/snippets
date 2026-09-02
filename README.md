@@ -149,3 +149,9 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Formatting is applied on pointer-down using the remembered editor selection, before iOS can collapse the selected range by moving focus to a toolbar button.
 - The bar follows `visualViewport` resize/scroll changes as the iOS keyboard moves or resizes. Without an on-screen keyboard, touch devices fall back to the floating selection palette.
 - Desktop keeps the existing floating selection palette positioned near the selected text.
+
+## Revision 4.15 — v0.4.15
+
+- Changes the iOS selected-text keyboard toolbar to Todo, Highlight, Bold, Italic, Strikethrough, and Link.
+- Uses Lucide-style Check and Link icons for the symbolic toolbar actions.
+- Removes Code from the iOS keyboard toolbar while preserving Code in the desktop selection palette.
