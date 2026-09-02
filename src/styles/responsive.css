@@ -237,3 +237,17 @@
   .web-capture-mobile-note { display: block; font-size: 14px; margin: 10px 12px 16px; }
   .web-capture-setup { min-height: 48px; font-size: 16px; }
 }
+
+@media (max-width: 899px) {
+  .formatting-palette {
+    left: 50% !important;
+    top: auto !important;
+    bottom: calc(82px + env(safe-area-inset-bottom)) !important;
+    max-width: calc(100% - 20px);
+    overflow-x: auto;
+    transform: translateX(-50%);
+    border-radius: var(--pill);
+  }
+  .formatting-button { min-width: 42px; height: 40px; padding: 0 10px; font-size: 16px; }
+  .formatting-todo { font-size: 20px; }
+}

@@ -6,6 +6,7 @@ import { listTagsWithCounts, setSnippetTag, toggleSnippetTag } from './storage/t
 import { getPreferences, setPreference } from './storage/preferencesRepository.js';
 import { chooseLaunchTarget } from './domain/launchPolicy.js';
 import { toPlainText } from './domain/snippetText.js';
+import { buildSharePayload } from './domain/sharePayload.js';
 import { renderEditorView } from './ui/editorView.js';
 import { renderLibraryView } from './ui/libraryView.js';
 import { renderTrashView } from './ui/trashView.js';
@@ -42,16 +43,16 @@ async function copyText(text) {
   textarea.remove();
 }
 
-async function shareText(text) {
+async function shareText(payload, fallbackText = '') {
   if (navigator.share) {
     try {
-      await navigator.share({ text });
+      await navigator.share(payload);
       return 'shared';
     } catch (error) {
       if (error?.name === 'AbortError') return 'cancelled';
     }
   }
-  await copyText(text);
+  await copyText(fallbackText || [payload.title, payload.text, payload.url].filter(Boolean).join('\n\n'));
   return 'copied';
 }
 
@@ -536,7 +537,8 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
     if (!text.trim()) return;
     await flushSave();
     try {
-      const result = await shareText(text);
+      const payload = buildSharePayload(text, state.currentSnippet?.sourceUrl);
+      const result = await shareText(payload, toPlainText(text));
       if (result === 'copied') showToast('Copied');
     } catch (error) {
       console.error(error);

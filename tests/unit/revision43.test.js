@@ -47,7 +47,7 @@ test('v0.4.3 establishes the 0.4.3+ patch line and r4 cache family', () => {
   const [, minor, patch] = packageJson.version.split('.').map(Number);
   assert.equal(minor, 4);
   assert.ok(patch >= 3);
-  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.[3-9]'/);
+  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.\d+'/);
   assert.match(swSource, /snippets-r4-/);
 });
 

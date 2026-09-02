@@ -2,6 +2,7 @@ import { parseTodoLine, renderInlineMarkdown, splitLineForDisplay } from './mark
 import { applyEditorLineInput, mergeLineWithPrevious, splitLineAt, toggleTodoAtLine } from './editorState.js';
 import { moveLine } from './todoReorder.js';
 import { isSelectAllShortcut } from './editorNavigation.js';
+import { applyInlineFormat, toggleTodoLines } from './selectionFormatting.js';
 
 function offsetWithin(element, container, containerOffset) {
   if (!element || !container || !element.contains(container)) return 0;
@@ -143,6 +144,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   let wholeDocumentSelected = false;
   let activeLineIndex = null;
   let selectionSyncFrame = null;
+  let formattingSyncFrame = null;
+  let formattingSelection = null;
   let gutterSyncFrame = null;
 
   host.classList.add('markdown-editor');
@@ -156,7 +159,21 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   surface.setAttribute('aria-multiline', 'true');
   surface.contentEditable = 'true';
   surface.spellcheck = true;
-  host.replaceChildren(gutter, surface);
+
+  const palette = document.createElement('div');
+  palette.className = 'formatting-palette';
+  palette.setAttribute('role', 'toolbar');
+  palette.setAttribute('aria-label', 'Text formatting');
+  palette.hidden = true;
+  palette.innerHTML = `
+    <button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
+    <button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><em>I</em></button>
+    <button type="button" class="formatting-button" data-format-action="highlight" aria-label="Highlight" title="Highlight">H</button>
+    <button type="button" class="formatting-button formatting-strike" data-format-action="strike" aria-label="Strikethrough" title="Strikethrough">S</button>
+    <button type="button" class="formatting-button formatting-code" data-format-action="code" aria-label="Code" title="Code">&lt;/&gt;</button>
+    <button type="button" class="formatting-button" data-format-action="link" aria-label="Link" title="Link">↗</button>
+    <button type="button" class="formatting-button formatting-todo" data-format-action="todo" aria-label="Todo" title="Todo">☐</button>`;
+  host.replaceChildren(gutter, surface, palette);
 
   function notify() { if (!destroyed) onChange(doc); }
 
@@ -388,6 +405,103 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     return { selection, range, startSpan, endSpan, startIndex, endIndex, startOffset, endOffset };
   }
 
+  function currentFormattingSelection() {
+    const info = rangeLineInfo();
+    if (!info) return null;
+    const selection = window.getSelection();
+    return {
+      startLine: info.startIndex,
+      startOffset: info.startOffset,
+      endLine: info.endIndex,
+      endOffset: info.endOffset,
+      collapsed: Boolean(selection?.isCollapsed),
+      rect: info.range.getBoundingClientRect()
+    };
+  }
+
+  function hideFormattingPalette() {
+    formattingSelection = null;
+    palette.hidden = true;
+    palette.classList.remove('formatting-palette--todo-only');
+  }
+
+  function updateFormattingPalette() {
+    formattingSyncFrame = null;
+    if (destroyed) return;
+    const snapshot = currentFormattingSelection();
+    if (!snapshot || !surface.contains(window.getSelection()?.anchorNode)) {
+      hideFormattingPalette();
+      return;
+    }
+    formattingSelection = snapshot;
+    palette.classList.toggle('formatting-palette--todo-only', snapshot.collapsed);
+    palette.hidden = false;
+
+    if (matchMedia('(max-width: 899px)').matches) {
+      palette.style.left = '50%';
+      palette.style.top = 'auto';
+      palette.style.bottom = 'calc(82px + env(safe-area-inset-bottom))';
+      return;
+    }
+
+    const width = palette.offsetWidth || 300;
+    const half = width / 2;
+    const center = snapshot.rect.left + snapshot.rect.width / 2;
+    palette.style.left = `${Math.max(half + 8, Math.min(window.innerWidth - half - 8, center))}px`;
+    palette.style.top = `${Math.max(10, snapshot.rect.top - 8)}px`;
+    palette.style.bottom = 'auto';
+  }
+
+  function queueFormattingPalette() {
+    if (destroyed || formattingSyncFrame != null) return;
+    formattingSyncFrame = requestAnimationFrame(updateFormattingPalette);
+  }
+
+  function applyFormattingAction(action) {
+    const snapshot = formattingSelection || currentFormattingSelection();
+    if (!snapshot) return;
+
+    if (action === 'todo') {
+      const result = toggleTodoLines(doc, snapshot.startLine, snapshot.endLine);
+      doc = result.doc;
+      wholeDocumentSelected = false;
+      const lines = doc.split('\n');
+      const caretLine = snapshot.collapsed ? snapshot.startLine : snapshot.endLine;
+      const caretOffset = snapshot.collapsed
+        ? Math.min(snapshot.startOffset, editableTextForLine(lines[caretLine] ?? '').length)
+        : editableTextForLine(lines[caretLine] ?? '').length;
+      activeLineIndex = caretLine;
+      render(caretLine, caretOffset);
+      notify();
+      return;
+    }
+
+    if (snapshot.collapsed) return;
+    const options = {};
+    if (action === 'link') {
+      const href = prompt('Link URL');
+      if (!href) return;
+      options.href = href;
+    }
+    const result = applyInlineFormat(doc, snapshot, action, options);
+    if (result.doc === doc) return;
+    doc = result.doc;
+    wholeDocumentSelected = false;
+    notify();
+
+    if (result.selection.startLine === result.selection.endLine) {
+      activeLineIndex = result.selection.startLine;
+      render();
+      const target = surface.querySelector(`.editor-line-text[data-line-index="${activeLineIndex}"]`);
+      if (target) setTextSelection(surface, target, result.selection.startOffset, result.selection.endOffset);
+      return;
+    }
+
+    const lines = doc.split('\n');
+    activeLineIndex = result.selection.endLine;
+    render(activeLineIndex, editableTextForLine(lines[activeLineIndex] ?? '').length);
+  }
+
   function replaceCrossLineSelection(insertText = '') {
     const info = rangeLineInfo();
     if (!info || info.startIndex === info.endIndex) return false;
@@ -463,9 +577,18 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     window.open(link.href, '_blank', 'noopener,noreferrer');
   });
 
-  surface.addEventListener('pointerup', queueSelectionSync);
+  surface.addEventListener('pointerup', () => { queueSelectionSync(); queueFormattingPalette(); });
   surface.addEventListener('keyup', event => {
-    if (/^(Arrow|Home|End)/.test(event.key)) queueSelectionSync();
+    if (/^(Arrow|Home|End)/.test(event.key)) { queueSelectionSync(); queueFormattingPalette(); }
+  });
+
+  palette.addEventListener('pointerdown', event => {
+    event.preventDefault();
+  });
+  palette.addEventListener('click', event => {
+    const button = event.target.closest?.('[data-format-action]');
+    if (!button) return;
+    applyFormattingAction(button.dataset.formatAction);
   });
 
   surface.addEventListener('input', event => {
@@ -633,6 +756,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
 
   surface.addEventListener('blur', event => {
     if (destroyed || (event.relatedTarget && host.contains(event.relatedTarget))) return;
+    hideFormattingPalette();
     deactivateActiveLine();
   });
 
@@ -644,6 +768,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       else return;
     }
     queueSelectionSync();
+    queueFormattingPalette();
   };
   document.addEventListener('selectionchange', handleSelectionChange);
 
@@ -676,6 +801,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     destroy() {
       destroyed = true;
       if (selectionSyncFrame != null) cancelAnimationFrame(selectionSyncFrame);
+      if (formattingSyncFrame != null) cancelAnimationFrame(formattingSyncFrame);
       if (gutterSyncFrame != null) cancelAnimationFrame(gutterSyncFrame);
       gutterObserver?.disconnect();
       window.removeEventListener('resize', resizeHandler);

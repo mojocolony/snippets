@@ -115,3 +115,8 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - The Markdown editor now keeps one continuous text-only `contenteditable` surface. Todo drag handles, checkboxes, and bullet markers live in a sibling control gutter, so native selection can cross list/todo lines without selecting those controls.
 - Todo completion and reordering still update the same Markdown source lines, and gutter geometry is synchronized to wrapped text lines.
 - Tag-assignment rows are tightened for a more compact list.
+
+## Revision 4.10 — v0.4.10
+- Shares the first meaningful line as the system share title, remaining plain text as text, and the captured source URL as URL when available.
+- Adds a compact selection formatting palette for Bold, Italic, Highlight, Strikethrough, Code, Link, and Todo.
+- Todo is also available at a collapsed caret: it starts a todo on a blank line, converts the current line, converts selected lines, and toggles existing todo lines back to text.

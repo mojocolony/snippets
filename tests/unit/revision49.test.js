@@ -79,10 +79,12 @@ test('tag assignment rows are more compact while checkbox controls remain explic
   assert.match(css, /\.tag-sheet-list input\[type="checkbox"\]\s*\{[^}]*width:\s*20px[^}]*height:\s*20px/s);
 });
 
-test('v0.4.9 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson.version, '0.4.9');
-  assert.equal(packageLock.version, '0.4.9');
-  assert.equal(packageLock.packages[''].version, '0.4.9');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.9['"]/);
-  assert.match(swSource, /snippets-r4-9/);
+test('v0.4.9 establishes the 0.4.9+ patch line and r4 cache family', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 9);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.\d+['"]/);
+  assert.match(swSource, /snippets-r4-/);
 });

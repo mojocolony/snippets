@@ -16,6 +16,7 @@ const cssFiles = ['src/styles/tokens.css', 'src/styles/app.css', 'src/styles/res
 const jsFiles = [
   'src/version.js',
   'src/domain/snippetText.js',
+  'src/domain/sharePayload.js',
   'src/domain/launchPolicy.js',
   'src/domain/trashPolicy.js',
   'src/domain/libraryItem.js',
@@ -33,6 +34,7 @@ const jsFiles = [
   'src/capture/captureParams.js',
   'src/capture/bookmarklets.js',
   'src/editor/markdownHelpers.js',
+  'src/editor/selectionFormatting.js',
   'src/editor/editorNavigation.js',
   'src/editor/todoReorder.js',
   'src/editor/editorState.js',
