@@ -74,3 +74,18 @@ export function mergeLineWithPrevious(doc, lineIndex) {
   parts.splice(lineIndex, 1);
   return { doc: parts.join('\n'), lineIndex: lineIndex - 1, caretOffset };
 }
+
+export function backspaceAtLineStart(doc, lineIndex) {
+  const source = String(doc);
+  const parts = lines(source);
+  const current = parts[lineIndex] ?? '';
+  const todo = parseTodoLine(current);
+  if (todo) {
+    parts[lineIndex] = todo.text;
+    return { doc: parts.join('\n'), lineIndex, caretOffset: 0, handled: true };
+  }
+  if (lineIndex > 0 && lineIndex < parts.length) {
+    return { ...mergeLineWithPrevious(source, lineIndex), handled: true };
+  }
+  return { doc: source, lineIndex, caretOffset: 0, handled: false };
+}

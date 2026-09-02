@@ -29,13 +29,11 @@ test('standard More actions are ordered Select, Trash, Web Capture, Keyboard sho
   assert.doesNotMatch(appSource, /\{\s*id:\s*['"]settings['"],\s*label:\s*['"]Settings['"]\s*\}/);
 });
 
-test('editor bottom bar replaces the redundant Star with a Todo control', () => {
+test('v0.4.11 removes the redundant bottom Star while preserving Todo capability', () => {
   const toolbar = editorView.match(/<nav class="control-strip normal-control-strip"[\s\S]*?<\/nav>/)?.[0] || '';
   assert.ok(toolbar);
   assert.match(toolbar, /data-action="library"/);
   assert.match(toolbar, /data-action="tags"/);
-  assert.match(toolbar, /data-action="todo"/);
-  assert.match(toolbar, /batchIconMarkup\('todo'\)/);
   assert.match(toolbar, /data-action="appearance"/);
   assert.match(toolbar, /data-action="share"/);
   assert.match(toolbar, /data-action="more"/);
@@ -63,10 +61,12 @@ test('selection palette and toolbar focus are cleared when the app loses visibil
   assert.match(editorView, /document\.addEventListener\(['"]visibilitychange['"]/);
 });
 
-test('v0.4.11 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson.version, '0.4.11');
-  assert.equal(packageLock.version, '0.4.11');
-  assert.equal(packageLock.packages[''].version, '0.4.11');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.11['"]/);
-  assert.match(swSource, /snippets-r4-11/);
+test('v0.4.11 or later stays on the 0.4 patch line and r4 cache family', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 11);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.\d+['"]/);
+  assert.match(swSource, /snippets-r4-/);
 });

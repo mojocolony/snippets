@@ -1,6 +1,6 @@
-export function createSheet({ title = '', className = '', onClose = () => {} } = {}) {
+export function createSheet({ title = '', className = '', onClose = () => {}, animateBackdrop = true } = {}) {
   const backdrop = document.createElement('div');
-  backdrop.className = 'sheet-backdrop';
+  backdrop.className = `sheet-backdrop${animateBackdrop ? '' : ' sheet-backdrop-no-fade'}`;
   backdrop.setAttribute('role', 'presentation');
 
   const sheet = document.createElement('section');

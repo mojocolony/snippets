@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyEditorLineInput, toggleTodoAtLine, splitLineAt, mergeLineWithPrevious, replaceLineText } from '../../src/editor/editorState.js';
+import * as editorState from '../../src/editor/editorState.js';
 
 test('toggleTodoAtLine changes only the checkbox marker', () => {
   assert.equal(toggleTodoAtLine('- [ ] A\ntext', 0), '- [x] A\ntext');
@@ -48,5 +49,44 @@ test('editor input preserves an existing todo marker while editing visible todo 
     doc: '- [x] New',
     becameTodo: false,
     caretOffset: 3
+  });
+});
+
+
+test('Backspace at the start of a todo removes todo formatting before line merging', () => {
+  assert.equal(typeof editorState.backspaceAtLineStart, 'function');
+  assert.deepEqual(editorState.backspaceAtLineStart('- [ ] Call Whirlpool', 0), {
+    handled: true,
+    doc: 'Call Whirlpool',
+    lineIndex: 0,
+    caretOffset: 0
+  });
+  assert.deepEqual(editorState.backspaceAtLineStart('- [x] Done', 0), {
+    handled: true,
+    doc: 'Done',
+    lineIndex: 0,
+    caretOffset: 0
+  });
+  assert.deepEqual(editorState.backspaceAtLineStart('- [ ] ', 0), {
+    handled: true,
+    doc: '',
+    lineIndex: 0,
+    caretOffset: 0
+  });
+});
+
+test('Backspace at the start of ordinary text still merges with the previous line', () => {
+  assert.equal(typeof editorState.backspaceAtLineStart, 'function');
+  assert.deepEqual(editorState.backspaceAtLineStart('Alpha\nBeta', 1), {
+    handled: true,
+    doc: 'AlphaBeta',
+    lineIndex: 0,
+    caretOffset: 5
+  });
+  assert.deepEqual(editorState.backspaceAtLineStart('Alpha', 0), {
+    handled: false,
+    doc: 'Alpha',
+    lineIndex: 0,
+    caretOffset: 0
   });
 });

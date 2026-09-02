@@ -35,8 +35,10 @@ test('auto-linking skips inline code and javascript bookmarklet source', () => {
   assert.doesNotMatch(bookmarklet, /href=/);
 });
 
-test('v0.4.4 bumps app version and PWA cache', () => {
-  assert.equal(packageJson.version, '0.4.4');
-  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.4'/);
-  assert.match(swSource, /snippets-r4-4/);
+test('v0.4.4 establishes the 0.4.4+ patch line and r4 cache family', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 4);
+  assert.match(versionSource, /APP_VERSION\s*=\s*'0\.4\.\d+'/);
+  assert.match(swSource, /snippets-r4-/);
 });

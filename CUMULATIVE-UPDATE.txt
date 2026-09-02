@@ -1,5 +1,5 @@
-Snippets v0.4.11 cumulative update
-Baseline: v0.4.8 or later
+Snippets v0.4.12 cumulative update
 
-Overlay these files onto the existing repository, replacing matching files.
-This package intentionally includes all source changes from v0.4.9, v0.4.10, and v0.4.11.
+This package contains every source file added or changed from v0.4.8 through v0.4.12.
+Overlay its contents onto the Snippets repository, preserving folders, then commit and push.
+It includes the v0.4.9 password/editor changes, v0.4.10 sharing/formatting, v0.4.11 cleanup, and v0.4.12 toolbar/Todo corrections.

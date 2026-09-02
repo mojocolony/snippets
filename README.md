@@ -128,3 +128,10 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - The formatting palette now appears only for an actual text selection, never for a collapsed caret, so no lone checkbox appears after launch or refresh.
 - Transient formatting UI and bottom-toolbar focus are cleared when Snippets loses window focus or becomes hidden, preventing stale selection/focus chrome on return.
 - Removes the duplicate Settings entry from More. Standard More actions are ordered Select, Trash, Web Capture, Keyboard shortcuts, Sign out.
+
+
+## Revision 4.12 — v0.4.12
+- Restores the quiet editor bottom bar to **Library, Tags, Aa, Share, More**; Todo is no longer a persistent toolbar control.
+- **Aa** opens a compact editor-format menu with **Todo** and **Settings** when there is no text selection.
+- The selection-formatting palette remains selection-only and never appears just because the editor has a caret.
+- Backspace at the start of a todo removes the todo formatting first and keeps the caret at the start of the text; a second Backspace can then merge with the previous line normally. Empty todos become ordinary blank lines.

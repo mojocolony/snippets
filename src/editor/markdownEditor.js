@@ -1,5 +1,5 @@
 import { parseTodoLine, renderInlineMarkdown, splitLineForDisplay } from './markdownHelpers.js';
-import { applyEditorLineInput, mergeLineWithPrevious, splitLineAt, toggleTodoAtLine } from './editorState.js';
+import { applyEditorLineInput, backspaceAtLineStart, splitLineAt, toggleTodoAtLine } from './editorState.js';
 import { moveLine } from './todoReorder.js';
 import { isSelectAllShortcut } from './editorNavigation.js';
 import { applyInlineFormat, shouldShowFormattingPalette, toggleTodoLines } from './selectionFormatting.js';
@@ -653,9 +653,10 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       notify();
       return;
     }
-    if (event.key === 'Backspace' && info.offset === 0 && info.index > 0) {
+    if (event.key === 'Backspace' && info.offset === 0) {
+      const result = backspaceAtLineStart(doc, info.index);
+      if (!result.handled) return;
       event.preventDefault();
-      const result = mergeLineWithPrevious(doc, info.index);
       doc = result.doc;
       activeLineIndex = result.lineIndex;
       render(result.lineIndex, result.caretOffset);

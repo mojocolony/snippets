@@ -3,6 +3,7 @@ import { makeLibraryItem } from '../domain/libraryItem.js';
 import { EDITOR_FONTS } from './appearanceSheet.js';
 import { featherIconMarkup } from './brandIcon.js';
 import { batchIconMarkup } from './batchIcons.js';
+import { openEditorFormatMenu } from './editorFormatMenu.js';
 
 function renderTags(container, tags = []) {
   container.replaceChildren(...tags.map(tag => {
@@ -170,8 +171,7 @@ export function renderEditorView(root, {
         <nav class="control-strip normal-control-strip" data-testid="control-strip" aria-label="Snippet controls">
           <button class="control-button" data-action="library" aria-label="Library" title="Library">${batchIconMarkup('menu')}</button>
           <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">${batchIconMarkup('tag')}</button>
-          <button class="control-button" data-action="todo" aria-label="Todo" title="Todo">${batchIconMarkup('todo')}</button>
-          <button class="control-button control-aa" data-action="appearance" aria-label="Appearance" title="Appearance">Aa</button>
+          <button class="control-button control-aa" data-action="appearance" aria-label="Formatting and settings" title="Formatting and settings" aria-haspopup="menu" aria-expanded="false">Aa</button>
           <button class="control-button" data-action="share" aria-label="Share" title="Share">${batchIconMarkup('share')}</button>
           <button class="control-button control-more" data-action="more" aria-label="More" title="More">${batchIconMarkup('ellipsis')}</button>
         </nav>
@@ -188,7 +188,7 @@ export function renderEditorView(root, {
   const metaAddTag = root.querySelector('[data-action="meta-add-tag"]');
   const metaTagList = root.querySelector('.editor-meta-tag-list');
   const metaEmptyTag = root.querySelector('.editor-meta-empty-tag');
-  const todo = root.querySelector('[data-action="todo"]');
+  const appearance = root.querySelector('[data-action="appearance"]');
   const share = root.querySelector('[data-action="share"]');
   const editorHost = root.querySelector('#markdown-editor-host');
   const normalStrip = root.querySelector('.normal-control-strip');
@@ -270,9 +270,17 @@ export function renderEditorView(root, {
   metaTags.addEventListener('click', onTags);
   metaAddTag.addEventListener('click', onTags);
   metaStar.addEventListener('click', onStar);
-  todo.addEventListener('pointerdown', event => event.preventDefault());
-  todo.addEventListener('click', () => editor.toggleTodo());
-  root.querySelector('[data-action="appearance"]').addEventListener('click', onAppearance);
+  let editorFormatMenu = null;
+  appearance.addEventListener('pointerdown', event => event.preventDefault());
+  appearance.addEventListener('click', () => {
+    editorFormatMenu?.close();
+    editorFormatMenu = openEditorFormatMenu({
+      anchor: appearance,
+      onTodo: () => editor.toggleTodo(),
+      onSettings: onAppearance,
+      onClose: () => { editorFormatMenu = null; }
+    });
+  });
   share.addEventListener('click', onShare);
   root.querySelector('[data-action="more"]').addEventListener('click', onMore);
   root.querySelector('[data-action="new-sidebar"]').addEventListener('click', onNew);
@@ -297,6 +305,7 @@ export function renderEditorView(root, {
     focus() { editor.focus(); },
     getValue() { return editor.getValue(); },
     destroy() {
+      editorFormatMenu?.close();
       window.removeEventListener('blur', clearTransientToolbarFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       editor.destroy();
