@@ -145,14 +145,20 @@ await test('checking a todo strikes its text through immediately', async () => {
 
 
 
-await test('editor uses one editing host so selection can span hard-newline lines', async () => {
+await test('editor selection surface excludes todo controls while spanning hard-newline lines', async () => {
   const host = document.createElement('div');
   document.body.append(host);
-  const editor = mountMarkdownEditor(host, { value: 'ARCHIVE\nTHE TALK SHOW\nParagraph text' });
-  assert(host.isContentEditable, 'markdown editor is the editing host');
-  const lines = [...host.querySelectorAll('.editor-line-text')];
+  const editor = mountMarkdownEditor(host, { value: '- [ ] ARCHIVE\n- [x] THE TALK SHOW\nParagraph text' });
+  const surface = host.querySelector('.editor-text-surface');
+  const gutter = host.querySelector('.editor-control-gutter');
+  assert(surface?.isContentEditable, 'text surface is the one editing host');
+  assert(!host.isContentEditable, 'outer editor host is not contenteditable');
+  assert(gutter && !surface.contains(gutter), 'control gutter is a sibling of the text surface');
+  assert(surface.querySelector('.todo-check') === null, 'checkbox controls are not inside the text surface');
+  assert(surface.querySelector('.todo-handle') === null, 'drag handles are not inside the text surface');
+  assert(host.querySelectorAll('.todo-check').length === 2, 'todo controls still render in the gutter');
+  const lines = [...surface.querySelectorAll('.editor-line-text')];
   assert(lines.length === 3, 'three rendered hard-newline lines');
-  assert(lines.every(line => !line.hasAttribute('contenteditable')), 'line nodes inherit one editing host');
   const range = document.createRange();
   range.setStart(lines[0].firstChild, 0);
   range.setEnd(lines[1].firstChild, lines[1].firstChild.textContent.length);

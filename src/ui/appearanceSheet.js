@@ -1,5 +1,6 @@
 import { createSheet } from './sheet.js';
 import { APP_VERSION } from '../version.js';
+import { validatePasswordChange } from '../auth/passwordChange.js';
 
 export const EDITOR_FONTS = Object.freeze({
   'ia-writer-duo': {
@@ -22,8 +23,8 @@ const RETURN_OPTIONS = [
   ['always', 'Never']
 ];
 
-export function openAppearanceSheet({ preferences, onChange = async () => preferences, onClose = () => {} } = {}) {
-  const sheet = createSheet({ title: 'Appearance', onClose });
+export function openAppearanceSheet({ preferences, onChange = async () => preferences, onChangePassword = null, onClose = () => {} } = {}) {
+  const sheet = createSheet({ title: 'Settings', onClose });
   let prefs = { ...preferences };
 
   const themeLabel = document.createElement('div');
@@ -97,11 +98,66 @@ export function openAppearanceSheet({ preferences, onChange = async () => prefer
   }
   select.addEventListener('change', async () => { prefs = await onChange('returnWindow', select.value); openState(); });
 
+  const accountLabel = document.createElement('div');
+  accountLabel.className = 'sheet-section-label';
+  accountLabel.textContent = 'Account';
+  const account = document.createElement('div');
+  account.className = 'settings-account';
+  const password = document.createElement('input');
+  password.type = 'password';
+  password.autocomplete = 'new-password';
+  password.placeholder = 'New password';
+  password.className = 'settings-password-input';
+  password.setAttribute('aria-label', 'New password');
+  const confirmation = document.createElement('input');
+  confirmation.type = 'password';
+  confirmation.autocomplete = 'new-password';
+  confirmation.placeholder = 'Confirm password';
+  confirmation.className = 'settings-password-input';
+  confirmation.setAttribute('aria-label', 'Confirm password');
+  const passwordAction = document.createElement('button');
+  passwordAction.type = 'button';
+  passwordAction.className = 'settings-account-action';
+  passwordAction.textContent = 'Set/Change Password';
+  const passwordMessage = document.createElement('div');
+  passwordMessage.className = 'settings-account-message';
+  passwordAction.addEventListener('click', async () => {
+    passwordMessage.textContent = '';
+    passwordMessage.classList.remove('is-error', 'is-success');
+    const validation = validatePasswordChange(password.value, confirmation.value);
+    if (!validation.ok) {
+      passwordMessage.textContent = validation.error;
+      passwordMessage.classList.add('is-error');
+      return;
+    }
+    if (!onChangePassword) {
+      passwordMessage.textContent = 'Password changes are unavailable.';
+      passwordMessage.classList.add('is-error');
+      return;
+    }
+    passwordAction.disabled = true;
+    passwordAction.textContent = 'Saving…';
+    try {
+      await onChangePassword(password.value);
+      password.value = '';
+      confirmation.value = '';
+      passwordMessage.textContent = 'Password updated.';
+      passwordMessage.classList.add('is-success');
+    } catch (error) {
+      passwordMessage.textContent = error?.message || 'Could not update password.';
+      passwordMessage.classList.add('is-error');
+    } finally {
+      passwordAction.disabled = false;
+      passwordAction.textContent = 'Set/Change Password';
+    }
+  });
+  account.append(password, confirmation, passwordAction, passwordMessage);
+
   const version = document.createElement('div');
   version.className = 'app-version';
   version.textContent = `Snippets v${APP_VERSION}`;
 
-  sheet.body.append(themeLabel, theme, fontLabel, fontGrid, sizeLabel, sizeRow, returnLabel, select, version);
+  sheet.body.append(themeLabel, theme, fontLabel, fontGrid, sizeLabel, sizeRow, returnLabel, select, accountLabel, account, version);
 
   function openState() {
     [...theme.children].forEach((button, index) => {

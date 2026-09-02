@@ -7,11 +7,105 @@ function element(tag, className, text = '') {
   return node;
 }
 
-export function renderAuthView(root, { onRequestCode, onVerify, initialError = '' } = {}) {
+export function renderAuthView(root, { onPasswordSignIn, onRequestLink, initialError = '' } = {}) {
   let email = '';
-  let mode = 'email';
+  let mode = 'password';
   let busy = false;
   let errorMessage = initialError;
+
+  function setBusy(next, ...controls) {
+    busy = next;
+    controls.filter(Boolean).forEach(control => { control.disabled = next; });
+  }
+
+  function renderPasswordForm(panel) {
+    const title = element('h1', 'auth-title', 'Sign in');
+    const copy = element('p', 'auth-copy', 'Use your email and password to open your snippets.');
+    panel.append(title, copy);
+
+    const form = element('form', 'auth-form');
+    const emailInput = document.createElement('input');
+    emailInput.className = 'auth-input';
+    emailInput.type = 'email';
+    emailInput.name = 'email';
+    emailInput.placeholder = 'Email';
+    emailInput.autocomplete = 'email';
+    emailInput.spellcheck = false;
+    emailInput.value = email;
+
+    const passwordInput = document.createElement('input');
+    passwordInput.className = 'auth-input';
+    passwordInput.type = 'password';
+    passwordInput.name = 'password';
+    passwordInput.placeholder = 'Password';
+    passwordInput.autocomplete = 'current-password';
+
+    const submit = element('button', 'auth-submit', busy ? 'Working…' : 'Sign in');
+    submit.type = 'submit';
+    submit.disabled = busy;
+
+    const link = element('button', 'auth-back', 'Email me a sign-in link');
+    link.type = 'button';
+    link.disabled = busy;
+
+    if (errorMessage) form.append(emailInput, passwordInput, submit, element('p', 'auth-error', errorMessage), link);
+    else form.append(emailInput, passwordInput, submit, link);
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (busy) return;
+      email = emailInput.value.trim();
+      const password = passwordInput.value;
+      errorMessage = '';
+      if (!email) { errorMessage = 'Enter an email address.'; render(); return; }
+      if (!password) { errorMessage = 'Enter your password.'; render(); return; }
+      setBusy(true, submit, link);
+      submit.textContent = 'Working…';
+      try {
+        await onPasswordSignIn?.(email, password);
+      } catch (error) {
+        errorMessage = error?.message || 'Could not sign in.';
+        setBusy(false, submit, link);
+        render();
+      }
+    });
+
+    link.addEventListener('click', async () => {
+      if (busy) return;
+      email = emailInput.value.trim();
+      errorMessage = '';
+      if (!email) { errorMessage = 'Enter an email address.'; render(); return; }
+      setBusy(true, submit, link);
+      try {
+        await onRequestLink?.(email);
+        mode = 'link-sent';
+        busy = false;
+        render();
+      } catch (error) {
+        errorMessage = error?.message || 'Could not send the sign-in link.';
+        setBusy(false, submit, link);
+        render();
+      }
+    });
+
+    panel.append(form);
+    requestAnimationFrame(() => (email ? passwordInput : emailInput).focus());
+  }
+
+  function renderLinkSent(panel) {
+    panel.append(
+      element('h1', 'auth-title', 'Check your email'),
+      element('p', 'auth-copy', `We sent a sign-in link to ${email}. Open it to finish signing in in a browser.`)
+    );
+    const back = element('button', 'auth-back', 'Use email and password');
+    back.type = 'button';
+    back.addEventListener('click', () => {
+      mode = 'password';
+      errorMessage = '';
+      render();
+    });
+    panel.append(back);
+  }
 
   function render() {
     root.replaceChildren();
@@ -21,87 +115,11 @@ export function renderAuthView(root, { onRequestCode, onVerify, initialError = '
     wordmark.innerHTML = `${featherIconMarkup('brand-feather')}<span>Snippets</span>`;
     panel.append(wordmark);
 
-    const title = element('h1', 'auth-title', mode === 'email' ? 'Sign in' : 'Check your email');
-    panel.append(title);
+    if (mode === 'password') renderPasswordForm(panel);
+    else renderLinkSent(panel);
 
-    const copy = element('p', 'auth-copy', mode === 'email'
-      ? 'Enter your email to open your snippets.'
-      : `Enter the 6-digit code sent to ${email}. If your email contains a sign-in link instead, that works too.`);
-    panel.append(copy);
-
-    const form = element('form', 'auth-form');
-    const input = document.createElement('input');
-    input.className = 'auth-input';
-    input.autocomplete = mode === 'email' ? 'email' : 'one-time-code';
-    input.spellcheck = false;
-
-    if (mode === 'email') {
-      input.type = 'email';
-      input.name = 'email';
-      input.placeholder = 'Email';
-      input.value = email;
-    } else {
-      input.type = 'text';
-      input.name = 'code';
-      input.placeholder = '000000';
-      input.inputMode = 'numeric';
-      input.maxLength = 6;
-      input.pattern = '[0-9]{6}';
-      input.classList.add('auth-code-input');
-    }
-
-    const button = element('button', 'auth-submit', busy ? 'Working…' : (mode === 'email' ? 'Continue' : 'Sign in'));
-    button.type = 'submit';
-    button.disabled = busy;
-    form.append(input, button);
-
-    if (errorMessage) form.append(element('p', 'auth-error', errorMessage));
-
-    if (mode === 'code') {
-      const back = element('button', 'auth-back', 'Use a different email');
-      back.type = 'button';
-      back.addEventListener('click', () => { mode = 'email'; errorMessage = ''; render(); });
-      form.append(back);
-    }
-
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      if (busy) return;
-      errorMessage = '';
-      busy = true;
-      button.disabled = true;
-      button.textContent = 'Working…';
-      try {
-        if (mode === 'email') {
-          email = input.value.trim();
-          if (!email) throw new Error('Enter an email address.');
-          await onRequestCode?.(email);
-          mode = 'code';
-          busy = false;
-          render();
-          return;
-        }
-        const token = input.value.replace(/\D/g, '').slice(0, 6);
-        if (token.length !== 6) throw new Error('Enter the 6-digit code.');
-        await onVerify?.(email, token);
-      } catch (error) {
-        errorMessage = error?.message || 'Could not sign in.';
-        busy = false;
-        render();
-        return;
-      } finally {
-        busy = false;
-        if (root.contains(button)) {
-          button.disabled = false;
-          button.textContent = mode === 'email' ? 'Continue' : 'Sign in';
-        }
-      }
-    });
-
-    panel.append(form);
     main.append(panel);
     root.append(main);
-    requestAnimationFrame(() => input.focus());
   }
 
   render();

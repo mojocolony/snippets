@@ -57,17 +57,17 @@ function showAuth(message = authNotice) {
   authNotice = '';
   renderAuthView(root, {
     initialError: message,
-    onRequestCode: async email => {
+    onPasswordSignIn: async (email, password) => {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (data.session) await openAuthenticated(data.session);
+    },
+    onRequestLink: async email => {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: appBaseUrl(), shouldCreateUser: false }
       });
       if (error) throw error;
-    },
-    onVerify: async (email, token) => {
-      const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
-      if (error) throw error;
-      if (data.session) await openAuthenticated(data.session);
     }
   });
 }
@@ -95,6 +95,10 @@ async function openAuthenticated(session) {
     appInstance = await createApp(root, {
       onSignOut: async () => {
         const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      },
+      onChangePassword: async password => {
+        const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
       }
     });

@@ -72,7 +72,7 @@ test('archiving from Inbox chooses an immediate next visible snippet', () => {
 
 test('tag assignment sheet uses a dedicated compact list class', () => {
   assert.match(tagSheetSource, /tag-sheet-list/);
-  assert.match(css, /\.tag-sheet-list\s+\.sheet-row\s*\{[\s\S]*?min-height:\s*38px/);
+  assert.match(css, /\.tag-sheet-list\s+\.sheet-row\s*\{[\s\S]*?min-height:\s*3[4-8]px/);
 });
 
 

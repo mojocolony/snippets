@@ -15,7 +15,7 @@ The publishable Supabase browser key in `src/cloud/supabaseClient.js` is intenti
 
 ## Authentication
 
-Snippets requests passwordless email authentication with Supabase and sets `shouldCreateUser: false`. A signed-in Supabase user must also be present in `snippets_access` before the app opens. The production login uses Supabase passwordless email. With the shared project's current default mailer, the primary flow is a magic link; the app can also verify a six-digit OTP if the shared Magic Link/OTP template is later configured to include `{{ .Token }}`. Authentication errors are surfaced in the login panel rather than failing silently.
+Snippets uses the existing Supabase Auth user in the shared **Ticking** project and never offers self-service signup. Email + password is the primary sign-in method so an installed iPhone/iPad PWA can authenticate directly without handing the session to Safari. The signed-out screen keeps **Email me a sign-in link** as a secondary browser fallback and still sets `shouldCreateUser: false`. A signed-in Supabase user must also be present in `snippets_access` before the app opens. Authenticated users can set or change their password from **Settings → Account**; Snippets calls `auth.updateUser({ password })` and keeps the current session active. No custom SMTP or Auth-template change is required.
 
 ## Development
 
@@ -106,3 +106,12 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Compact tablet widths below 900px now use the readable mobile/tablet layout, including an edge-to-edge editor, larger controls, and larger library text.
 - New installs default to a 20px editor size while existing explicit Appearance choices remain respected.
 - The Markdown editor now uses one continuous editing surface, so text selection can span hard-newline lines instead of stopping at each rendered line.
+
+
+## Revision 4.9 — v0.4.9
+
+- Email + password is now the primary sign-in method, allowing installed iPhone/iPad PWAs to authenticate without opening Safari. Magic-link sign-in remains available as a secondary browser fallback.
+- **Settings → Account** includes **Set/Change Password** for the existing authorized Supabase account.
+- The Markdown editor now keeps one continuous text-only `contenteditable` surface. Todo drag handles, checkboxes, and bullet markers live in a sibling control gutter, so native selection can cross list/todo lines without selecting those controls.
+- Todo completion and reordering still update the same Markdown source lines, and gutter geometry is synchronized to wrapped text lines.
+- Tag-assignment rows are tightened for a more compact list.

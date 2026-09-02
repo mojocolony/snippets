@@ -82,8 +82,8 @@ function canReorderTodo(doc, fromIndex, toIndex) {
   return lines.slice(start, end + 1).every(line => Boolean(parseTodoLine(line)));
 }
 
-function spanForNode(host, node) {
-  if (!node || !host.contains(node)) return null;
+function spanForNode(surface, node) {
+  if (!node || !surface.contains(node)) return null;
   const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
   return element?.closest?.('.editor-line-text') || null;
 }
@@ -121,8 +121,8 @@ function textPointForOffset(element, requestedOffset) {
   return { node: element, offset: 0 };
 }
 
-function setTextSelection(host, element, start, end = start) {
-  host.focus({ preventScroll: true });
+function setTextSelection(surface, element, start, end = start) {
+  surface.focus({ preventScroll: true });
   requestAnimationFrame(() => {
     if (!element.isConnected) return;
     const startPoint = textPointForOffset(element, start);
@@ -143,13 +143,20 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   let wholeDocumentSelected = false;
   let activeLineIndex = null;
   let selectionSyncFrame = null;
+  let gutterSyncFrame = null;
 
   host.classList.add('markdown-editor');
-  host.dataset.testid = 'editor-input';
-  host.setAttribute('role', 'textbox');
-  host.setAttribute('aria-multiline', 'true');
-  host.contentEditable = 'true';
-  host.spellcheck = true;
+
+  const gutter = document.createElement('div');
+  gutter.className = 'editor-control-gutter';
+  const surface = document.createElement('div');
+  surface.className = 'editor-text-surface';
+  surface.dataset.testid = 'editor-input';
+  surface.setAttribute('role', 'textbox');
+  surface.setAttribute('aria-multiline', 'true');
+  surface.contentEditable = 'true';
+  surface.spellcheck = true;
+  host.replaceChildren(gutter, surface);
 
   function notify() { if (!destroyed) onChange(doc); }
 
@@ -158,6 +165,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     fontSize = nextSize;
     if (fontFamily) host.style.setProperty('--editor-font', fontFamily);
     host.style.setProperty('--editor-size', `${fontSize}px`);
+    queueGutterSync();
   }
 
   function decorateText(span, display, { autoLink = true } = {}) {
@@ -165,78 +173,12 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     if (!span.textContent) span.innerHTML = '<br>';
   }
 
-  function makeLine(line, index) {
+  function makeTextLine(line, index) {
     const codeLine = isFencedCodeLine(doc, index);
     const display = codeLine ? { type: 'code', text: line } : splitLineForDisplay(line);
     const editing = index === activeLineIndex;
-    const row = document.createElement('div');
-    row.className = `editor-line editor-line--${display.type}`;
-    row.dataset.lineIndex = String(index);
-    if (editing) row.classList.add('is-editing');
-
-    if (display.type === 'todo') {
-      const handle = document.createElement('button');
-      handle.type = 'button';
-      handle.className = 'todo-handle';
-      handle.contentEditable = 'false';
-      handle.setAttribute('aria-label', 'Reorder todo');
-      handle.innerHTML = '<svg class="todo-handle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>';
-      handle.addEventListener('pointerdown', event => {
-        event.preventDefault();
-        dragState = { from: index, to: index, handle };
-        handle.setPointerCapture?.(event.pointerId);
-        row.classList.add('is-dragging');
-      });
-      handle.addEventListener('pointermove', event => {
-        if (!dragState) return;
-        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.editor-line');
-        const targetIndex = Number(target?.dataset?.lineIndex);
-        if (Number.isInteger(targetIndex) && canReorderTodo(doc, dragState.from, targetIndex)) {
-          host.querySelectorAll('.editor-line.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
-          target.classList.add('is-drop-target');
-          dragState.to = targetIndex;
-        }
-      });
-      handle.addEventListener('pointerup', event => {
-        if (!dragState) return;
-        handle.releasePointerCapture?.(event.pointerId);
-        const { from, to } = dragState;
-        dragState = null;
-        if (from !== to && canReorderTodo(doc, from, to)) {
-          doc = moveLine(doc, from, to);
-          if (activeLineIndex === from) activeLineIndex = to;
-          render();
-          notify();
-        } else render();
-      });
-      row.append(handle);
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'todo-check';
-      checkbox.contentEditable = 'false';
-      checkbox.checked = display.checked;
-      checkbox.setAttribute('aria-label', display.checked ? 'Mark todo incomplete' : 'Mark todo complete');
-      checkbox.addEventListener('change', () => {
-        doc = toggleTodoAtLine(doc, index);
-        render();
-        notify();
-      });
-      const checkSlot = document.createElement('span');
-      checkSlot.className = 'todo-check-slot';
-      checkSlot.contentEditable = 'false';
-      checkSlot.append(checkbox);
-      row.append(checkSlot);
-    } else if (display.type === 'bullet') {
-      const bullet = document.createElement('span');
-      bullet.className = 'bullet-marker';
-      bullet.contentEditable = 'false';
-      bullet.setAttribute('aria-hidden', 'true');
-      row.append(bullet);
-    }
-
     const span = document.createElement('div');
-    span.className = 'editor-line-text';
+    span.className = `editor-line-text editor-line--${display.type}`;
     span.dataset.lineIndex = String(index);
     if (display.type === 'todo' && display.checked) span.classList.add('is-complete');
     if (display.type === 'heading') span.classList.add(`heading-${Math.min(display.level, 3)}`);
@@ -248,22 +190,136 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     } else {
       decorateText(span, display, { autoLink: !codeLine });
     }
+    return span;
+  }
 
-    row.append(span);
-    return row;
+  function clearDropTargets() {
+    surface.querySelectorAll('.editor-line-text.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
+  }
+
+  function lineIndexAtClientY(clientY) {
+    let closestIndex = null;
+    let closestDistance = Infinity;
+    for (const line of surface.querySelectorAll('.editor-line-text')) {
+      const rect = line.getBoundingClientRect();
+      const index = lineIndexForSpan(line);
+      if (index == null) continue;
+      if (clientY >= rect.top && clientY <= rect.bottom) return index;
+      const distance = Math.abs(clientY - (rect.top + rect.height / 2));
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    }
+    return closestIndex;
+  }
+
+  function makeGutterItem(line, index) {
+    const display = isFencedCodeLine(doc, index) ? { type: 'code', text: line } : splitLineForDisplay(line);
+    if (display.type !== 'todo' && display.type !== 'bullet') return null;
+
+    const item = document.createElement('div');
+    item.className = `editor-gutter-item editor-gutter-item--${display.type}`;
+    item.dataset.lineIndex = String(index);
+    if (index === activeLineIndex) item.classList.add('is-editing');
+
+    if (display.type === 'todo') {
+      const handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'todo-handle';
+      handle.dataset.lineIndex = String(index);
+      handle.setAttribute('aria-label', 'Reorder todo');
+      handle.innerHTML = '<svg class="todo-handle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>';
+      handle.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        dragState = { from: index, to: index, handle };
+        handle.setPointerCapture?.(event.pointerId);
+        item.classList.add('is-dragging');
+      });
+      handle.addEventListener('pointermove', event => {
+        if (!dragState) return;
+        const targetIndex = lineIndexAtClientY(event.clientY);
+        if (Number.isInteger(targetIndex) && canReorderTodo(doc, dragState.from, targetIndex)) {
+          clearDropTargets();
+          surface.querySelector(`.editor-line-text[data-line-index="${targetIndex}"]`)?.classList.add('is-drop-target');
+          dragState.to = targetIndex;
+        }
+      });
+      handle.addEventListener('pointerup', event => {
+        if (!dragState) return;
+        handle.releasePointerCapture?.(event.pointerId);
+        const { from, to } = dragState;
+        dragState = null;
+        clearDropTargets();
+        if (from !== to && canReorderTodo(doc, from, to)) {
+          doc = moveLine(doc, from, to);
+          if (activeLineIndex === from) activeLineIndex = to;
+          render();
+          notify();
+        } else render();
+      });
+      item.append(handle);
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'todo-check';
+      checkbox.dataset.lineIndex = String(index);
+      checkbox.checked = display.checked;
+      checkbox.setAttribute('aria-label', display.checked ? 'Mark todo incomplete' : 'Mark todo complete');
+      checkbox.addEventListener('change', () => {
+        doc = toggleTodoAtLine(doc, index);
+        render();
+        notify();
+      });
+      const checkSlot = document.createElement('span');
+      checkSlot.className = 'todo-check-slot';
+      checkSlot.append(checkbox);
+      item.append(checkSlot);
+    } else {
+      const bullet = document.createElement('span');
+      bullet.className = 'bullet-marker';
+      bullet.setAttribute('aria-hidden', 'true');
+      item.append(bullet);
+    }
+
+    return item;
+  }
+
+  function syncGutterGeometry() {
+    gutterSyncFrame = null;
+    if (destroyed) return;
+    for (const item of gutter.querySelectorAll('.editor-gutter-item')) {
+      const index = Number(item.dataset.lineIndex);
+      const line = surface.querySelector(`.editor-line-text[data-line-index="${index}"]`);
+      if (!line) continue;
+      item.style.top = `${line.offsetTop}px`;
+      item.style.height = `${line.offsetHeight}px`;
+    }
+  }
+
+  function queueGutterSync() {
+    if (destroyed || gutterSyncFrame != null) return;
+    gutterSyncFrame = requestAnimationFrame(syncGutterGeometry);
+  }
+
+  function renderGutter() {
+    const lines = doc.split('\n');
+    gutter.replaceChildren(...lines.map(makeGutterItem).filter(Boolean));
+    queueGutterSync();
   }
 
   function renderLine(index) {
     if (destroyed) return;
-    const existing = host.querySelector(`.editor-line[data-line-index="${index}"]`);
+    const existing = surface.querySelector(`.editor-line-text[data-line-index="${index}"]`);
     if (!existing) return;
     const line = doc.split('\n')[index] ?? '';
-    existing.replaceWith(makeLine(line, index));
+    existing.replaceWith(makeTextLine(line, index));
+    renderGutter();
   }
 
   function setCaretForLine(lineIndex, caretOffset) {
-    const target = host.querySelector(`.editor-line-text[data-line-index="${lineIndex}"]`);
-    if (target) setTextSelection(host, target, caretOffset);
+    const target = surface.querySelector(`.editor-line-text[data-line-index="${lineIndex}"]`);
+    if (target) setTextSelection(surface, target, caretOffset);
   }
 
   function render(focusIndex = null, caretOffset = 0) {
@@ -271,7 +327,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     const lines = doc.split('\n');
     if (focusIndex != null) activeLineIndex = Math.max(0, Math.min(focusIndex, lines.length - 1));
     if (activeLineIndex != null && activeLineIndex >= lines.length) activeLineIndex = lines.length - 1;
-    host.replaceChildren(...lines.map(makeLine));
+    surface.replaceChildren(...lines.map(makeTextLine));
+    renderGutter();
     if (focusIndex != null) setCaretForLine(activeLineIndex, caretOffset);
   }
 
@@ -298,8 +355,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
 
   function selectionLineInfo() {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !host.contains(selection.anchorNode)) return null;
-    const span = spanForNode(host, selection.anchorNode);
+    if (!selection || selection.rangeCount === 0 || !surface.contains(selection.anchorNode)) return null;
+    const span = spanForNode(surface, selection.anchorNode);
     const index = lineIndexForSpan(span);
     if (!span || index == null) return null;
     const displayOffset = selectionOffset(span);
@@ -314,8 +371,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return null;
     const range = selection.getRangeAt(0);
-    const startSpan = spanForNode(host, range.startContainer);
-    const endSpan = spanForNode(host, range.endContainer);
+    const startSpan = spanForNode(surface, range.startContainer);
+    const endSpan = spanForNode(surface, range.endContainer);
     const startIndex = lineIndexForSpan(startSpan);
     const endIndex = lineIndexForSpan(endSpan);
     if (!startSpan || !endSpan || startIndex == null || endIndex == null) return null;
@@ -367,7 +424,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   }
 
   function selectWholeDocument() {
-    const spans = [...host.querySelectorAll('.editor-line-text')];
+    const spans = [...surface.querySelectorAll('.editor-line-text')];
     if (!spans.length) return;
     const range = document.createRange();
     range.setStart(spans[0], 0);
@@ -384,20 +441,20 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       selectionSyncFrame = null;
       if (destroyed || wholeDocumentSelected) return;
       const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0 || !selection.isCollapsed || !host.contains(selection.anchorNode)) return;
+      if (!selection || selection.rangeCount === 0 || !selection.isCollapsed || !surface.contains(selection.anchorNode)) return;
       const info = selectionLineInfo();
       if (!info || info.index === activeLineIndex) return;
       activateLine(info.index, info.offset);
     });
   }
 
-  host.addEventListener('pointerdown', event => {
+  surface.addEventListener('pointerdown', event => {
     const link = event.target.closest?.('a');
     const span = event.target.closest?.('.editor-line-text');
     if (link && span && !span.classList.contains('is-editing')) event.preventDefault();
   });
 
-  host.addEventListener('click', event => {
+  surface.addEventListener('click', event => {
     const link = event.target.closest?.('a');
     const span = event.target.closest?.('.editor-line-text');
     if (!link || !span || span.classList.contains('is-editing')) return;
@@ -406,12 +463,12 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     window.open(link.href, '_blank', 'noopener,noreferrer');
   });
 
-  host.addEventListener('pointerup', queueSelectionSync);
-  host.addEventListener('keyup', event => {
+  surface.addEventListener('pointerup', queueSelectionSync);
+  surface.addEventListener('keyup', event => {
     if (/^(Arrow|Home|End)/.test(event.key)) queueSelectionSync();
   });
 
-  host.addEventListener('input', event => {
+  surface.addEventListener('input', event => {
     if (wholeDocumentSelected) return;
     let span = event.target.closest?.('.editor-line-text') || null;
     if (!span) span = selectionLineInfo()?.span || null;
@@ -422,11 +479,11 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     const result = applyEditorLineInput(doc, index, span.textContent, offset);
     doc = result.doc;
     if (result.becameTodo) render(index, result.caretOffset);
+    else queueGutterSync();
     notify();
   });
 
-  host.addEventListener('keydown', event => {
-    if (event.target.closest?.('.todo-handle, .todo-check')) return;
+  surface.addEventListener('keydown', event => {
     if (isSelectAllShortcut(event)) {
       event.preventDefault();
       event.stopPropagation();
@@ -453,8 +510,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       activeLineIndex = info.index;
       renderLine(info.index);
       notify();
-      const target = host.querySelector(`.editor-line-text[data-line-index="${info.index}"]`);
-      if (target) setTextSelection(host, target, formatted.start, formatted.end);
+      const target = surface.querySelector(`.editor-line-text[data-line-index="${info.index}"]`);
+      if (target) setTextSelection(surface, target, formatted.start, formatted.end);
       return;
     }
 
@@ -478,7 +535,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     }
   });
 
-  host.addEventListener('paste', event => {
+  surface.addEventListener('paste', event => {
     if (wholeDocumentSelected) {
       event.preventDefault();
       event.stopPropagation();
@@ -520,13 +577,13 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     notify();
   });
 
-  host.addEventListener('copy', event => {
+  surface.addEventListener('copy', event => {
     if (!wholeDocumentSelected) return;
     event.preventDefault();
     event.clipboardData?.setData('text/plain', doc);
   });
 
-  host.addEventListener('cut', event => {
+  surface.addEventListener('cut', event => {
     if (!wholeDocumentSelected) return;
     event.preventDefault();
     event.clipboardData?.setData('text/plain', doc);
@@ -537,7 +594,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     notify();
   });
 
-  host.addEventListener('beforeinput', event => {
+  surface.addEventListener('beforeinput', event => {
     if (wholeDocumentSelected) {
       if (event.inputType === 'insertFromPaste') return;
       if (event.inputType?.startsWith('delete')) {
@@ -574,7 +631,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     }
   }, true);
 
-  host.addEventListener('blur', event => {
+  surface.addEventListener('blur', event => {
     if (destroyed || (event.relatedTarget && host.contains(event.relatedTarget))) return;
     deactivateActiveLine();
   });
@@ -589,6 +646,11 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     queueSelectionSync();
   };
   document.addEventListener('selectionchange', handleSelectionChange);
+
+  const resizeHandler = () => queueGutterSync();
+  window.addEventListener('resize', resizeHandler);
+  const gutterObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(queueGutterSync) : null;
+  gutterObserver?.observe(surface);
 
   applyAppearance();
   render();
@@ -614,8 +676,11 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     destroy() {
       destroyed = true;
       if (selectionSyncFrame != null) cancelAnimationFrame(selectionSyncFrame);
+      if (gutterSyncFrame != null) cancelAnimationFrame(gutterSyncFrame);
+      gutterObserver?.disconnect();
+      window.removeEventListener('resize', resizeHandler);
       document.removeEventListener('selectionchange', handleSelectionChange);
-      host.contentEditable = 'false';
+      surface.contentEditable = 'false';
       host.replaceChildren();
     }
   };

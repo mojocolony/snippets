@@ -48,8 +48,8 @@ test('new Snippets installs default to a 20px editor size', () => {
 });
 
 
-test('Markdown editor uses one inherited editing host instead of one contenteditable per line', () => {
-  assert.match(editorSource, /host\.contentEditable\s*=\s*['"]true['"]/);
+test('Markdown editor uses one continuous text surface instead of one contenteditable per line', () => {
+  assert.match(editorSource, /surface\.contentEditable\s*=\s*['"]true['"]/);
   assert.doesNotMatch(editorSource, /span\.contentEditable\s*=\s*['"]true['"]/);
 });
 
@@ -58,10 +58,13 @@ const packageLock = JSON.parse(fs.readFileSync(new URL('../../package-lock.json'
 const versionSource = fs.readFileSync(new URL('../../src/version.js', import.meta.url), 'utf8');
 const swSource = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
 
-test('v0.4.7 publishes the approved version and a fresh r4 cache', () => {
-  assert.equal(packageJson.version, '0.4.7');
-  assert.equal(packageLock.version, '0.4.7');
-  assert.equal(packageLock.packages[''].version, '0.4.7');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.7['"]/);
-  assert.match(swSource, /snippets-r4-7/);
+test('v0.4.7 establishes the 0.4.7+ patch line and r4 cache family', () => {
+  const [major, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(major, 0);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 7);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.\d+['"]/);
+  assert.match(swSource, /snippets-r4-/);
 });

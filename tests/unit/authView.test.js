@@ -6,18 +6,18 @@ const authSource = await readFile(new URL('../../src/auth/authView.js', import.m
 const mainSource = await readFile(new URL('../../src/main.js', import.meta.url), 'utf8');
 const appSource = await readFile(new URL('../../src/app.js', import.meta.url), 'utf8');
 
-test('production auth view supports email request and six-digit code verification', () => {
+test('production auth view supports password sign-in with a secondary email-link fallback', () => {
   assert.match(authSource, /type\s*=\s*['"]email['"]/);
-  assert.match(authSource, /inputMode\s*=\s*['"]numeric['"]/);
-  assert.match(authSource, /maxLength\s*=\s*6/);
-  assert.match(authSource, /onRequestCode/);
-  assert.match(authSource, /onVerify/);
+  assert.match(authSource, /type\s*=\s*['"]password['"]/);
+  assert.match(authSource, /onPasswordSignIn/);
+  assert.match(authSource, /onRequestLink/);
+  assert.match(authSource, /Email me a sign-in link/);
 });
 
-test('main gates Snippets behind persisted Supabase session', () => {
+test('main gates Snippets behind persisted Supabase session and supports both password and magic-link auth', () => {
   assert.match(mainSource, /auth\.getSession/);
+  assert.match(mainSource, /signInWithPassword/);
   assert.match(mainSource, /signInWithOtp/);
-  assert.match(mainSource, /verifyOtp/);
   assert.match(mainSource, /initialCloudSync/);
 });
 

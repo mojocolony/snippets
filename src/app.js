@@ -55,7 +55,7 @@ async function shareText(text) {
   return 'copied';
 }
 
-export async function createApp(root, { onSignOut = null } = {}) {
+export async function createApp(root, { onSignOut = null, onChangePassword = null } = {}) {
   const desktopMedia = matchMedia('(min-width: 900px)');
   const isDesktop = () => desktopMedia.matches;
 
@@ -510,7 +510,8 @@ export async function createApp(root, { onSignOut = null } = {}) {
         applyTheme(state.preferences.themeMode);
         state.editorView?.updateAppearance(state.preferences);
         return { ...state.preferences };
-      }
+      },
+      onChangePassword
     });
   }
 
