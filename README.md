@@ -142,3 +142,10 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Todo still remains available in the selected-text formatting palette.
 - The editor remembers the last in-editor caret or selection so the upper Todo control can reliably start, convert, remove, or apply todos even after the browser moves focus to the toolbar.
 - The bottom bar remains **Library, Tags, Aa, Share, More**.
+
+## Revision 4.14 — v0.4.14
+- On touch-capable iPhone/iPad layouts, selecting text while the software keyboard is open now moves the contextual formatting controls to a Craft-style bar attached to the top edge of the keyboard.
+- The selection bar is **Highlight, Bold, Italic, Strikethrough, Code, Link**. Todo remains in the upper metadata toolbar rather than duplicating it in the selection bar.
+- Formatting is applied on pointer-down using the remembered editor selection, before iOS can collapse the selected range by moving focus to a toolbar button.
+- The bar follows `visualViewport` resize/scroll changes as the iOS keyboard moves or resizes. Without an on-screen keyboard, touch devices fall back to the floating selection palette.
+- Desktop keeps the existing floating selection palette positioned near the selected text.

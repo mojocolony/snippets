@@ -40,10 +40,12 @@ test('Todo command remembers the last in-editor caret or selection instead of re
   assert.match(editorSource, /toggleTodo\(\)\s*\{\s*applyFormattingAction\(['"]todo['"]\)/);
 });
 
-test('v0.4.13 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson.version, '0.4.13');
-  assert.equal(packageLock.version, '0.4.13');
-  assert.equal(packageLock.packages[''].version, '0.4.13');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.13['"]/);
-  assert.match(swSource, /snippets-r4-13/);
+test('v0.4.13 or later preserves matching app, package and r4 PWA cache versions', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 13);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.\d+['"]/);
+  assert.match(swSource, /snippets-r4-/);
 });

@@ -35,6 +35,7 @@ const jsFiles = [
   'src/capture/bookmarklets.js',
   'src/editor/markdownHelpers.js',
   'src/editor/selectionFormatting.js',
+  'src/editor/formattingViewport.js',
   'src/editor/editorNavigation.js',
   'src/editor/todoReorder.js',
   'src/editor/editorState.js',

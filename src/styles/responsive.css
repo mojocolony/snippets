@@ -238,16 +238,24 @@
   .web-capture-setup { min-height: 48px; font-size: 16px; }
 }
 
-@media (max-width: 899px) {
-  .formatting-palette {
-    left: 50% !important;
-    top: auto !important;
-    bottom: calc(82px + env(safe-area-inset-bottom)) !important;
-    max-width: calc(100% - 20px);
-    overflow-x: auto;
-    transform: translateX(-50%);
-    border-radius: var(--pill);
-  }
-  .formatting-button { min-width: 42px; height: 40px; padding: 0 10px; font-size: 16px; }
-  .formatting-todo { font-size: 20px; }
+.formatting-palette.is-keyboard-accessory {
+  box-sizing: border-box;
+  max-width: none;
+  min-height: 48px;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
+  overflow-x: auto;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  transform: translateX(-50%);
+}
+.formatting-palette.is-keyboard-accessory .formatting-button {
+  min-width: 48px;
+  height: 40px;
+  padding: 0 10px;
+  font-size: 16px;
+  flex: 0 0 auto;
 }

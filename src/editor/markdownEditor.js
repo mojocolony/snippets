@@ -3,6 +3,7 @@ import { applyEditorLineInput, backspaceAtLineStart, splitLineAt, toggleTodoAtLi
 import { moveLine } from './todoReorder.js';
 import { isSelectAllShortcut } from './editorNavigation.js';
 import { applyInlineFormat, shouldShowFormattingPalette, toggleTodoLines } from './selectionFormatting.js';
+import { keyboardAccessoryGeometry, shouldAnchorFormattingBarToKeyboard, shouldUseKeyboardFormattingBar } from './formattingViewport.js';
 
 function offsetWithin(element, container, containerOffset) {
   if (!element || !container || !element.contains(container)) return 0;
@@ -148,7 +149,12 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   let formattingSelection = null;
   let rememberedEditorSelection = null;
   let formattingSuspended = false;
+  let formattingInteractionActive = false;
+  let pointerFormattingAction = null;
   let gutterSyncFrame = null;
+  const visualViewport = window.visualViewport;
+  const touchFormattingLayout = shouldUseKeyboardFormattingBar({ maxTouchPoints: navigator.maxTouchPoints });
+  let formattingViewportBaselineHeight = Math.max(visualViewport?.height || 0, window.innerHeight || 0);
 
   host.classList.add('markdown-editor');
 
@@ -168,13 +174,12 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   palette.setAttribute('aria-label', 'Text formatting');
   palette.hidden = true;
   palette.innerHTML = `
+    <button type="button" class="formatting-button formatting-highlight" data-format-action="highlight" aria-label="Highlight" title="Highlight">H</button>
     <button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
     <button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><em>I</em></button>
-    <button type="button" class="formatting-button" data-format-action="highlight" aria-label="Highlight" title="Highlight">H</button>
     <button type="button" class="formatting-button formatting-strike" data-format-action="strike" aria-label="Strikethrough" title="Strikethrough">S</button>
     <button type="button" class="formatting-button formatting-code" data-format-action="code" aria-label="Code" title="Code">&lt;/&gt;</button>
-    <button type="button" class="formatting-button" data-format-action="link" aria-label="Link" title="Link">↗</button>
-    <button type="button" class="formatting-button formatting-todo" data-format-action="todo" aria-label="Todo" title="Todo">☐</button>`;
+    <button type="button" class="formatting-button formatting-link" data-format-action="link" aria-label="Link" title="Link">↗</button>`;
   host.replaceChildren(gutter, surface, palette);
 
   function notify() { if (!destroyed) onChange(doc); }
@@ -461,16 +466,20 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   function hideFormattingPalette() {
     formattingSelection = null;
     palette.hidden = true;
+    palette.classList.remove('is-keyboard-accessory');
+    palette.style.width = '';
   }
 
   function updateFormattingPalette() {
     formattingSyncFrame = null;
     if (destroyed) return;
-    const snapshot = currentFormattingSelection();
-    if (snapshot) rememberEditorSelection(snapshot);
+    const liveSnapshot = currentFormattingSelection();
+    if (liveSnapshot) rememberEditorSelection(liveSnapshot);
+    const snapshot = liveSnapshot || (formattingInteractionActive ? formattingSelection : null);
+    const selectionInsideEditor = surface.contains(window.getSelection()?.anchorNode);
     if (
       !shouldShowFormattingPalette(snapshot, { suspended: formattingSuspended }) ||
-      !surface.contains(window.getSelection()?.anchorNode)
+      (!selectionInsideEditor && !formattingInteractionActive)
     ) {
       hideFormattingPalette();
       return;
@@ -478,13 +487,30 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     formattingSelection = snapshot;
     palette.hidden = false;
 
-    if (matchMedia('(max-width: 899px)').matches) {
-      palette.style.left = '50%';
-      palette.style.top = 'auto';
-      palette.style.bottom = 'calc(82px + env(safe-area-inset-bottom))';
+    const viewportHeight = visualViewport?.height || window.innerHeight || 0;
+    const useKeyboardAccessory = shouldAnchorFormattingBarToKeyboard({
+      touchLayout: touchFormattingLayout,
+      baselineHeight: formattingViewportBaselineHeight,
+      viewportHeight
+    });
+    palette.classList.toggle('is-keyboard-accessory', useKeyboardAccessory);
+
+    if (useKeyboardAccessory) {
+      const viewport = visualViewport || {
+        offsetLeft: 0,
+        offsetTop: 0,
+        width: window.innerWidth,
+        height: window.innerHeight
+      };
+      const geometry = keyboardAccessoryGeometry(viewport, { toolbarHeight: palette.offsetHeight || 48 });
+      palette.style.left = `${geometry.left}px`;
+      palette.style.top = `${geometry.top}px`;
+      palette.style.bottom = 'auto';
+      palette.style.width = `${geometry.width}px`;
       return;
     }
 
+    palette.style.width = '';
     const width = palette.offsetWidth || 300;
     const half = width / 2;
     const center = snapshot.rect.left + snapshot.rect.width / 2;
@@ -627,11 +653,27 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   });
 
   palette.addEventListener('pointerdown', event => {
+    const button = event.target.closest?.('[data-format-action]');
+    if (!button) return;
     event.preventDefault();
+    const snapshot = currentFormattingSelection() || formattingSelection || rememberedEditorSelection;
+    if (snapshot) {
+      formattingSelection = { ...snapshot };
+      rememberEditorSelection(snapshot);
+    }
+    formattingInteractionActive = true;
+    pointerFormattingAction = button.dataset.formatAction;
+    applyFormattingAction(button.dataset.formatAction);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      formattingInteractionActive = false;
+      queueFormattingPalette();
+    }));
+    setTimeout(() => { pointerFormattingAction = null; }, 0);
   });
   palette.addEventListener('click', event => {
     const button = event.target.closest?.('[data-format-action]');
     if (!button) return;
+    if (pointerFormattingAction === button.dataset.formatAction) return;
     applyFormattingAction(button.dataset.formatAction);
   });
 
@@ -831,8 +873,15 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   window.addEventListener('blur', suspendFormattingPalette);
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
-  const resizeHandler = () => queueGutterSync();
+  const resizeHandler = () => { queueGutterSync(); queueFormattingPalette(); };
+  const visualViewportHandler = () => {
+    if (!visualViewport) return;
+    if (visualViewport.height > formattingViewportBaselineHeight) formattingViewportBaselineHeight = visualViewport.height;
+    queueFormattingPalette();
+  };
   window.addEventListener('resize', resizeHandler);
+  visualViewport?.addEventListener('resize', visualViewportHandler);
+  visualViewport?.addEventListener('scroll', visualViewportHandler);
   const gutterObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(queueGutterSync) : null;
   gutterObserver?.observe(surface);
 
@@ -868,6 +917,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       if (gutterSyncFrame != null) cancelAnimationFrame(gutterSyncFrame);
       gutterObserver?.disconnect();
       window.removeEventListener('resize', resizeHandler);
+      visualViewport?.removeEventListener('resize', visualViewportHandler);
+      visualViewport?.removeEventListener('scroll', visualViewportHandler);
       window.removeEventListener('blur', suspendFormattingPalette);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('selectionchange', handleSelectionChange);

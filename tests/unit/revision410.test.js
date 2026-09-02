@@ -68,10 +68,12 @@ test('Todo converts blank, current, or multiple lines and toggles todos back to 
   assert.equal(formatModule.toggleTodoLines('- [ ] One\n- [x] Two', 0, 1).doc, 'One\nTwo');
 });
 
-test('editor exposes the selection formatting palette with Todo among its actions', () => {
-  for (const action of ['bold', 'italic', 'highlight', 'strike', 'code', 'link', 'todo']) {
+test('editor exposes inline selection formatting while Todo remains a separate editor command', () => {
+  for (const action of ['bold', 'italic', 'highlight', 'strike', 'code', 'link']) {
     assert.match(editorSource, new RegExp(`data-format-action[^\n]+${action}|${action}[^\n]+data-format-action`, 'i'));
   }
+  assert.doesNotMatch(editorSource.match(/palette\.innerHTML\s*=\s*`([\s\S]*?)`;/)?.[1] || '', /data-format-action="todo"/);
+  assert.match(editorSource, /toggleTodo\(\)\s*\{/);
   assert.match(editorSource, /formatting-palette/);
   assert.match(editorSource, /prompt\(['"]Link URL/);
   assert.match(css, /\.formatting-palette\s*\{/);
