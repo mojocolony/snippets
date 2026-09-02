@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 const authSource = await readFile(new URL('../../src/auth/authView.js', import.meta.url), 'utf8').catch(() => '');
 const mainSource = await readFile(new URL('../../src/main.js', import.meta.url), 'utf8');
 const appSource = await readFile(new URL('../../src/app.js', import.meta.url), 'utf8');
+const moreSource = await readFile(new URL('../../src/ui/moreMenu.js', import.meta.url), 'utf8');
 
 test('production auth view supports password sign-in with a secondary email-link fallback', () => {
   assert.match(authSource, /type\s*=\s*['"]email['"]/);
@@ -23,5 +24,5 @@ test('main gates Snippets behind persisted Supabase session and supports both pa
 
 test('More menu exposes an unobtrusive sign out action when provided', () => {
   assert.match(appSource, /onSignOut/);
-  assert.match(appSource, /Sign out/);
+  assert.match(moreSource, /Sign out/);
 });

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const appSource = fs.readFileSync(new URL('../../src/app.js', import.meta.url), 'utf8');
+const moreSource = fs.readFileSync(new URL('../../src/ui/moreMenu.js', import.meta.url), 'utf8');
 const librarySource = fs.readFileSync(new URL('../../src/ui/libraryView.js', import.meta.url), 'utf8');
 const editorViewSource = fs.readFileSync(new URL('../../src/ui/editorView.js', import.meta.url), 'utf8');
 const trashSource = fs.readFileSync(new URL('../../src/ui/trashView.js', import.meta.url), 'utf8');
@@ -54,7 +55,7 @@ test('batch tag sheet represents mixed tag state and can force a tag on or off',
 });
 
 test('Trash is reachable from the editor menu and supports batch restore and permanent delete', () => {
-  assert.match(appSource, /\{ id: 'trash', label: 'Trash' \}/);
+  assert.match(moreSource, /\{ id: 'trash', label: 'Trash' \}/);
   assert.match(trashSource, /selectionMode/);
   assert.match(trashSource, /data-batch-action="restore"/);
   assert.match(trashSource, /data-batch-action="delete"/);

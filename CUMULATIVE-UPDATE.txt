@@ -1,0 +1,5 @@
+Snippets v0.4.11 cumulative update
+Baseline: v0.4.8 or later
+
+Overlay these files onto the existing repository, replacing matching files.
+This package intentionally includes all source changes from v0.4.9, v0.4.10, and v0.4.11.

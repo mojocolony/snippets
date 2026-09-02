@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const appSource = fs.readFileSync(new URL('../../src/app.js', import.meta.url), 'utf8');
+const moreSource = fs.readFileSync(new URL('../../src/ui/moreMenu.js', import.meta.url), 'utf8');
 const bookmarkletPage = fs.readFileSync(new URL('../../bookmarklets.html', import.meta.url), 'utf8');
 const buildSource = fs.readFileSync(new URL('../../scripts/build.js', import.meta.url), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -19,8 +20,8 @@ const bookmarkletSource = readOptional('../../src/capture/bookmarklets.js');
 
 test('More menus surface Web Capture and open the dedicated sheet', () => {
   assert.match(appSource, /openWebCaptureSheet/);
-  assert.match(appSource, /id:\s*'web-capture',\s*label:\s*'Web Capture'/);
-  assert.ok((appSource.match(/id:\s*'web-capture'/g) || []).length >= 2, 'Web Capture should appear in editor and library More menus');
+  assert.match(moreSource, /id:\s*'web-capture',\s*label:\s*'Web Capture'/);
+  assert.ok((appSource.match(/standardMoreActions/g) || []).length >= 3, 'shared More actions should be imported and used by editor and library menus');
   assert.match(appSource, /id === 'web-capture'/);
 });
 

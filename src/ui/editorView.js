@@ -170,7 +170,7 @@ export function renderEditorView(root, {
         <nav class="control-strip normal-control-strip" data-testid="control-strip" aria-label="Snippet controls">
           <button class="control-button" data-action="library" aria-label="Library" title="Library">${batchIconMarkup('menu')}</button>
           <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">${batchIconMarkup('tag')}</button>
-          <button class="control-button" data-action="star" aria-label="Star" title="Star">${batchIconMarkup('star')}</button>
+          <button class="control-button" data-action="todo" aria-label="Todo" title="Todo">${batchIconMarkup('todo')}</button>
           <button class="control-button control-aa" data-action="appearance" aria-label="Appearance" title="Appearance">Aa</button>
           <button class="control-button" data-action="share" aria-label="Share" title="Share">${batchIconMarkup('share')}</button>
           <button class="control-button control-more" data-action="more" aria-label="More" title="More">${batchIconMarkup('ellipsis')}</button>
@@ -188,7 +188,7 @@ export function renderEditorView(root, {
   const metaAddTag = root.querySelector('[data-action="meta-add-tag"]');
   const metaTagList = root.querySelector('.editor-meta-tag-list');
   const metaEmptyTag = root.querySelector('.editor-meta-empty-tag');
-  const star = root.querySelector('[data-action="star"]');
+  const todo = root.querySelector('[data-action="todo"]');
   const share = root.querySelector('[data-action="share"]');
   const editorHost = root.querySelector('#markdown-editor-host');
   const normalStrip = root.querySelector('.normal-control-strip');
@@ -210,8 +210,6 @@ export function renderEditorView(root, {
     snippet = nextSnippet;
     const starred = Boolean(snippet?.starred);
     const starLabel = starred ? 'Unstar' : 'Star';
-    star.classList.toggle('is-active', starred);
-    star.setAttribute('aria-label', starLabel);
     metaStar.classList.toggle('is-active', starred);
     metaStar.setAttribute('aria-label', starLabel);
     status.textContent = snippet?.pinned ? 'Pinned' : '';
@@ -251,6 +249,16 @@ export function renderEditorView(root, {
     workspace.classList.toggle('is-sidebar-collapsed', Boolean(collapsed));
   }
 
+  function clearTransientToolbarFocus() {
+    const active = document.activeElement;
+    if (active?.matches?.('.control-strip .control-button')) active.blur();
+  }
+  const handleVisibilityChange = () => {
+    if (document.hidden) clearTransientToolbarFocus();
+  };
+  window.addEventListener('blur', clearTransientToolbarFocus);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
   updateMeta(snippet);
   updateSidebar(libraryItems, libraryScope, snippet?.id || null);
   setSidebarCollapsed(sidebarCollapsed);
@@ -262,7 +270,8 @@ export function renderEditorView(root, {
   metaTags.addEventListener('click', onTags);
   metaAddTag.addEventListener('click', onTags);
   metaStar.addEventListener('click', onStar);
-  star.addEventListener('click', onStar);
+  todo.addEventListener('pointerdown', event => event.preventDefault());
+  todo.addEventListener('click', () => editor.toggleTodo());
   root.querySelector('[data-action="appearance"]').addEventListener('click', onAppearance);
   share.addEventListener('click', onShare);
   root.querySelector('[data-action="more"]').addEventListener('click', onMore);
@@ -287,6 +296,10 @@ export function renderEditorView(root, {
     },
     focus() { editor.focus(); },
     getValue() { return editor.getValue(); },
-    destroy() { editor.destroy(); }
+    destroy() {
+      window.removeEventListener('blur', clearTransientToolbarFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      editor.destroy();
+    }
   };
 }

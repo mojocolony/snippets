@@ -2,7 +2,7 @@ import { parseTodoLine, renderInlineMarkdown, splitLineForDisplay } from './mark
 import { applyEditorLineInput, mergeLineWithPrevious, splitLineAt, toggleTodoAtLine } from './editorState.js';
 import { moveLine } from './todoReorder.js';
 import { isSelectAllShortcut } from './editorNavigation.js';
-import { applyInlineFormat, toggleTodoLines } from './selectionFormatting.js';
+import { applyInlineFormat, shouldShowFormattingPalette, toggleTodoLines } from './selectionFormatting.js';
 
 function offsetWithin(element, container, containerOffset) {
   if (!element || !container || !element.contains(container)) return 0;
@@ -146,6 +146,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   let selectionSyncFrame = null;
   let formattingSyncFrame = null;
   let formattingSelection = null;
+  let formattingSuspended = false;
   let gutterSyncFrame = null;
 
   host.classList.add('markdown-editor');
@@ -422,19 +423,20 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   function hideFormattingPalette() {
     formattingSelection = null;
     palette.hidden = true;
-    palette.classList.remove('formatting-palette--todo-only');
   }
 
   function updateFormattingPalette() {
     formattingSyncFrame = null;
     if (destroyed) return;
     const snapshot = currentFormattingSelection();
-    if (!snapshot || !surface.contains(window.getSelection()?.anchorNode)) {
+    if (
+      !shouldShowFormattingPalette(snapshot, { suspended: formattingSuspended }) ||
+      !surface.contains(window.getSelection()?.anchorNode)
+    ) {
       hideFormattingPalette();
       return;
     }
     formattingSelection = snapshot;
-    palette.classList.toggle('formatting-palette--todo-only', snapshot.collapsed);
     palette.hidden = false;
 
     if (matchMedia('(max-width: 899px)').matches) {
@@ -563,6 +565,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   }
 
   surface.addEventListener('pointerdown', event => {
+    formattingSuspended = false;
+    hideFormattingPalette();
     const link = event.target.closest?.('a');
     const span = event.target.closest?.('.editor-line-text');
     if (link && span && !span.classList.contains('is-editing')) event.preventDefault();
@@ -607,6 +611,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   });
 
   surface.addEventListener('keydown', event => {
+    formattingSuspended = false;
     if (isSelectAllShortcut(event)) {
       event.preventDefault();
       event.stopPropagation();
@@ -772,6 +777,17 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   };
   document.addEventListener('selectionchange', handleSelectionChange);
 
+  const suspendFormattingPalette = () => {
+    formattingSuspended = true;
+    hideFormattingPalette();
+  };
+  const handleVisibilityChange = () => {
+    if (document.hidden) suspendFormattingPalette();
+    else hideFormattingPalette();
+  };
+  window.addEventListener('blur', suspendFormattingPalette);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
   const resizeHandler = () => queueGutterSync();
   window.addEventListener('resize', resizeHandler);
   const gutterObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(queueGutterSync) : null;
@@ -795,6 +811,9 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       const offset = editableTextForLine(lines[targetIndex] ?? '').length;
       activateLine(targetIndex, offset);
     },
+    toggleTodo() {
+      applyFormattingAction('todo');
+    },
     updateAppearance({ fontFamily: nextFamily = fontFamily, fontSize: nextSize = fontSize } = {}) {
       applyAppearance(nextFamily, nextSize);
     },
@@ -805,6 +824,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       if (gutterSyncFrame != null) cancelAnimationFrame(gutterSyncFrame);
       gutterObserver?.disconnect();
       window.removeEventListener('resize', resizeHandler);
+      window.removeEventListener('blur', suspendFormattingPalette);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('selectionchange', handleSelectionChange);
       surface.contentEditable = 'false';
       host.replaceChildren();

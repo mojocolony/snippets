@@ -120,3 +120,11 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Shares the first meaningful line as the system share title, remaining plain text as text, and the captured source URL as URL when available.
 - Adds a compact selection formatting palette for Bold, Italic, Highlight, Strikethrough, Code, Link, and Todo.
 - Todo is also available at a collapsed caret: it starts a todo on a blank line, converts the current line, converts selected lines, and toggles existing todo lines back to text.
+
+
+## Revision 4.11 — v0.4.11
+- Replaces the redundant bottom-bar Star with a Todo control; starring remains available in the metadata strip above every snippet.
+- Todo in the bottom bar starts, converts, removes, or applies todos to selected lines while preserving the selection-aware Todo action in the formatting palette.
+- The formatting palette now appears only for an actual text selection, never for a collapsed caret, so no lone checkbox appears after launch or refresh.
+- Transient formatting UI and bottom-toolbar focus are cleared when Snippets loses window focus or becomes hidden, preventing stale selection/focus chrome on return.
+- Removes the duplicate Settings entry from More. Standard More actions are ordered Select, Trash, Web Capture, Keyboard shortcuts, Sign out.

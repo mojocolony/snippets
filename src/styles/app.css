@@ -413,7 +413,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .control-button[disabled] { opacity: .28; cursor: default; }
 .control-button.control-aa { font-size: 13px; letter-spacing: -.05em; }
 .control-button.control-more { padding-left: 10px; }
-.control-button[data-action="star"].is-active .toolbar-action-icon { fill: currentColor; }
 
 .library-inner, .trash-inner {
   width: min(calc(100% - 48px), var(--library-max));
@@ -884,4 +883,3 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .formatting-strike { text-decoration: line-through; }
 .formatting-code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; letter-spacing: -.05em; }
 .formatting-todo { font-size: 18px; font-weight: 400; }
-.formatting-palette--todo-only .formatting-button:not([data-format-action="todo"]) { display: none; }

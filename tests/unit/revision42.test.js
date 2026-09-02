@@ -19,7 +19,7 @@ test('normal and multi-select bottom toolbars use the same Lucide SVG geometry',
   assert.ok(normalLibraryMarkup);
   assert.match(normalEditorMarkup, /batchIconMarkup\('menu'\)/);
   assert.match(normalEditorMarkup, /batchIconMarkup\('tag'\)/);
-  assert.match(normalEditorMarkup, /batchIconMarkup\('star'\)/);
+  assert.match(normalEditorMarkup, /batchIconMarkup\('todo'\)/);
   assert.match(normalEditorMarkup, /batchIconMarkup\('share'\)/);
   assert.match(normalEditorMarkup, /batchIconMarkup\('ellipsis'\)/);
   assert.doesNotMatch(normalEditorMarkup, />☰<|>#<|>☆<|>↑<|>•••</);
@@ -31,6 +31,7 @@ test('normal and multi-select bottom toolbars use the same Lucide SVG geometry',
   assert.match(iconSource, /menu:/);
   assert.match(iconSource, /plus:/);
   assert.match(iconSource, /search:/);
+  assert.match(iconSource, /todo:/);
   assert.match(iconSource, /share:/);
   assert.match(iconSource, /ellipsis:/);
   assert.match(css, /\.toolbar-action-icon\s*\{[^}]*width:\s*20px;[^}]*height:\s*20px;/s);

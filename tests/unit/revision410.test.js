@@ -68,13 +68,11 @@ test('Todo converts blank, current, or multiple lines and toggles todos back to 
   assert.equal(formatModule.toggleTodoLines('- [ ] One\n- [x] Two', 0, 1).doc, 'One\nTwo');
 });
 
-test('editor exposes the formatting palette and keeps Todo available at a collapsed caret', () => {
+test('editor exposes the selection formatting palette with Todo among its actions', () => {
   for (const action of ['bold', 'italic', 'highlight', 'strike', 'code', 'link', 'todo']) {
-    assert.match(editorSource, new RegExp(`data-format-action[^\\n]+${action}|${action}[^\\n]+data-format-action`, 'i'));
+    assert.match(editorSource, new RegExp(`data-format-action[^\n]+${action}|${action}[^\n]+data-format-action`, 'i'));
   }
   assert.match(editorSource, /formatting-palette/);
-  assert.match(editorSource, /selection\.isCollapsed/);
-  assert.match(editorSource, /formatting-palette--todo-only/);
   assert.match(editorSource, /prompt\(['"]Link URL/);
   assert.match(css, /\.formatting-palette\s*\{/);
   assert.match(responsiveCss, /\.formatting-palette/);
@@ -86,10 +84,12 @@ test('standalone build includes the new share and formatting modules before thei
   assert.match(buildSource, /src\/editor\/selectionFormatting\.js/);
 });
 
-test('v0.4.10 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson.version, '0.4.10');
-  assert.equal(packageLock.version, '0.4.10');
-  assert.equal(packageLock.packages[''].version, '0.4.10');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.10['"]/);
-  assert.match(swSource, /snippets-r4-10/);
+test('v0.4.10 or later keeps matching app, package and PWA cache versions', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 10);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.\d+['"]/);
+  assert.match(swSource, /snippets-r4-/);
 });

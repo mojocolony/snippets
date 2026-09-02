@@ -12,7 +12,7 @@ import { renderLibraryView } from './ui/libraryView.js';
 import { renderTrashView } from './ui/trashView.js';
 import { openTagSheet } from './ui/tagSheet.js';
 import { openAppearanceSheet } from './ui/appearanceSheet.js';
-import { openMoreMenu } from './ui/moreMenu.js';
+import { openMoreMenu, standardMoreActions } from './ui/moreMenu.js';
 import { showToast } from './ui/toast.js';
 import { openShortcutSheet } from './ui/shortcutSheet.js';
 import { openWebCaptureSheet } from './ui/webCaptureSheet.js';
@@ -548,30 +548,19 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
 
   async function openEditorMore() {
     if (state.currentContent.trim()) await flushSave();
+    const secondaryActions = standardMoreActions({ includeSignOut: Boolean(onSignOut) });
     const actions = state.currentContent.trim() ? [
       { id: 'pin', label: state.currentSnippet?.pinned ? 'Unpin' : 'Pin' },
       { id: 'archive', label: state.currentSnippet?.archived ? 'Unarchive' : 'Archive' },
       { id: 'copy', label: 'Copy' },
       { id: 'copy-markdown', label: 'Copy Markdown' },
       { id: 'delete', label: 'Delete', danger: true },
-      { id: 'select', label: 'Select' },
-      { id: 'trash', label: 'Trash' },
-      { id: 'web-capture', label: 'Web Capture' },
-      { id: 'shortcuts', label: 'Keyboard shortcuts' },
-      { id: 'settings', label: 'Settings' }
-    ] : [
-      { id: 'select', label: 'Select' },
-      { id: 'trash', label: 'Trash' },
-      { id: 'web-capture', label: 'Web Capture' },
-      { id: 'shortcuts', label: 'Keyboard shortcuts' },
-      { id: 'settings', label: 'Settings' }
-    ];
-    if (onSignOut) actions.push({ id: 'signout', label: 'Sign out' });
+      ...secondaryActions
+    ] : secondaryActions;
 
     openMoreMenu({
       actions,
       onAction: async id => {
-        if (id === 'settings') { openAppearance(); return; }
         if (id === 'shortcuts') { openKeyboardShortcuts(); return; }
         if (id === 'select') { await enterSelectionMode(state.currentSnippet?.id || null); return; }
         if (id === 'trash') { await showTrash(); return; }
@@ -619,14 +608,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
   }
 
   function openLibraryMore() {
-    const actions = [
-      { id: 'select', label: 'Select' },
-      { id: 'trash', label: 'Trash' },
-      { id: 'web-capture', label: 'Web Capture' },
-      { id: 'shortcuts', label: 'Keyboard shortcuts' },
-      { id: 'settings', label: 'Settings' }
-    ];
-    if (onSignOut) actions.push({ id: 'signout', label: 'Sign out' });
+    const actions = standardMoreActions({ includeSignOut: Boolean(onSignOut) });
     openMoreMenu({
       actions,
       onAction: async id => {
@@ -634,7 +616,6 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
         else if (id === 'trash') await showTrash();
         else if (id === 'web-capture') openWebCaptureSheet();
         else if (id === 'shortcuts') openKeyboardShortcuts();
-        else if (id === 'settings') openAppearance();
         else if (id === 'signout') await onSignOut?.();
       }
     });

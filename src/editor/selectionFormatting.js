@@ -1,5 +1,9 @@
 import { parseTodoLine } from './markdownHelpers.js';
 
+export function shouldShowFormattingPalette(selection, { suspended = false } = {}) {
+  return Boolean(selection && !selection.collapsed && !suspended);
+}
+
 const MARKERS = Object.freeze({
   bold: ['**', '**'],
   italic: ['_', '_'],
