@@ -47,7 +47,6 @@ const jsFiles = [
   'src/ui/moreMenu.js',
   'src/ui/webCaptureSheet.js',
   'src/ui/batchIcons.js',
-  'src/ui/editorFormatMenu.js',
   'src/ui/editorView.js',
   'src/ui/libraryView.js',
   'src/ui/trashView.js',

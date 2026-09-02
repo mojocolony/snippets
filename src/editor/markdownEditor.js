@@ -146,6 +146,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   let selectionSyncFrame = null;
   let formattingSyncFrame = null;
   let formattingSelection = null;
+  let rememberedEditorSelection = null;
   let formattingSuspended = false;
   let gutterSyncFrame = null;
 
@@ -336,6 +337,14 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   }
 
   function setCaretForLine(lineIndex, caretOffset) {
+    rememberEditorSelection({
+      startLine: lineIndex,
+      startOffset: caretOffset,
+      endLine: lineIndex,
+      endOffset: caretOffset,
+      collapsed: true,
+      rect: null
+    });
     const target = surface.querySelector(`.editor-line-text[data-line-index="${lineIndex}"]`);
     if (target) setTextSelection(surface, target, caretOffset);
   }
@@ -420,6 +429,35 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     };
   }
 
+  function rememberEditorSelection(snapshot = currentFormattingSelection()) {
+    if (!snapshot) return rememberedEditorSelection;
+    rememberedEditorSelection = {
+      startLine: snapshot.startLine,
+      startOffset: snapshot.startOffset,
+      endLine: snapshot.endLine,
+      endOffset: snapshot.endOffset,
+      collapsed: Boolean(snapshot.collapsed),
+      rect: snapshot.rect || null
+    };
+    return rememberedEditorSelection;
+  }
+
+  function defaultEditorSelection() {
+    const lines = doc.split('\n');
+    const lineIndex = Number.isInteger(activeLineIndex)
+      ? Math.max(0, Math.min(activeLineIndex, lines.length - 1))
+      : 0;
+    const offset = editableTextForLine(lines[lineIndex] ?? '').length;
+    return {
+      startLine: lineIndex,
+      startOffset: offset,
+      endLine: lineIndex,
+      endOffset: offset,
+      collapsed: true,
+      rect: null
+    };
+  }
+
   function hideFormattingPalette() {
     formattingSelection = null;
     palette.hidden = true;
@@ -429,6 +467,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     formattingSyncFrame = null;
     if (destroyed) return;
     const snapshot = currentFormattingSelection();
+    if (snapshot) rememberEditorSelection(snapshot);
     if (
       !shouldShowFormattingPalette(snapshot, { suspended: formattingSuspended }) ||
       !surface.contains(window.getSelection()?.anchorNode)
@@ -460,8 +499,9 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   }
 
   function applyFormattingAction(action) {
-    const snapshot = formattingSelection || currentFormattingSelection();
+    const snapshot = currentFormattingSelection() || formattingSelection || rememberedEditorSelection || defaultEditorSelection();
     if (!snapshot) return;
+    rememberEditorSelection(snapshot);
 
     if (action === 'todo') {
       const result = toggleTodoLines(doc, snapshot.startLine, snapshot.endLine);
@@ -773,6 +813,8 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) wholeDocumentSelected = false;
       else return;
     }
+    const snapshot = currentFormattingSelection();
+    if (snapshot) rememberEditorSelection(snapshot);
     queueSelectionSync();
     queueFormattingPalette();
   };
@@ -803,6 +845,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       doc = String(next ?? '');
       activeLineIndex = null;
       wholeDocumentSelected = false;
+      rememberedEditorSelection = null;
       render();
     },
     focus() {

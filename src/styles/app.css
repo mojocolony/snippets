@@ -92,9 +92,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   width: 100%;
   min-height: 42px;
   display: inline-grid;
-  grid-template-columns: 28px max-content 28px;
+  grid-template-columns: 28px 28px max-content 28px;
   align-items: center;
-  column-gap: 8px;
+  column-gap: 6px;
   justify-content: start;
   margin-bottom: 16px;
   padding: 0 4px;
@@ -139,6 +139,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   stroke: currentColor;
   stroke-width: 1.7;
   stroke-linecap: round;
+}
+.editor-meta-todo-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .editor-meta-control:hover {
   background: var(--surface-strong);
@@ -885,42 +892,4 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .formatting-todo { font-size: 18px; font-weight: 400; }
 
 /* v0.4.12 explicit Aa formatting menu */
-.editor-format-menu {
-  position: fixed;
-  z-index: 46;
-  display: flex;
-  gap: 4px;
-  padding: 5px;
-  border: 1px solid color-mix(in srgb, var(--hairline) 86%, transparent);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(18px) saturate(120%);
-  -webkit-backdrop-filter: blur(18px) saturate(120%);
-  transform: translate(-50%, -100%);
-  user-select: none;
-  -webkit-user-select: none;
-}
-.editor-format-menu-button {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-}
-.editor-format-menu-button:hover,
-.editor-format-menu-button:focus-visible { background: var(--surface-strong); }
-.editor-format-menu-icon {
-  display: inline-grid;
-  place-items: center;
-  min-width: 21px;
-  color: var(--muted);
-  font-size: 15px;
-}
-.editor-format-menu-icon--todo { font-size: 20px; }
+

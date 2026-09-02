@@ -1,5 +1,5 @@
-Snippets v0.4.12 cumulative update
+Snippets v0.4.13 cumulative update
 
-This package contains every source file added or changed from v0.4.8 through v0.4.12.
-Overlay its contents onto the Snippets repository, preserving folders, then commit and push.
-It includes the v0.4.9 password/editor changes, v0.4.10 sharing/formatting, v0.4.11 cleanup, and v0.4.12 toolbar/Todo corrections.
+This update is cumulative from v0.4.8. You may overlay these files onto a Snippets repository at v0.4.8 or any later 0.4.x release through v0.4.12.
+
+It includes the password-first authentication/editor restructuring from v0.4.9, Share/selection formatting from v0.4.10, toolbar/focus cleanup from v0.4.11, Todo/Backspace corrections from v0.4.12, and the v0.4.13 upper-toolbar Todo control and remembered caret/selection target.

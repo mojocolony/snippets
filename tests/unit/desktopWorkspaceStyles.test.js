@@ -68,9 +68,9 @@ test('desktop editor chrome uses whitespace instead of full-width divider rules'
   assert.doesNotMatch(appCss, /\.editor-meta-strip\s*\{[^}]*border-bottom:\s*1px solid var\(--hairline\)/);
 });
 
-test('metadata row keeps equal outer spacing around the tag area', () => {
+test('metadata row keeps fixed control slots around the compact tag area', () => {
   const appCss = fs.readFileSync(new URL('../../src/styles/app.css', import.meta.url), 'utf8');
-  assert.match(appCss, /\.editor-meta-strip\s*\{[^}]*grid-template-columns:\s*28px max-content 28px[^}]*column-gap:\s*8px/);
+  assert.match(appCss, /\.editor-meta-strip\s*\{[^}]*grid-template-columns:\s*28px 28px max-content 28px[^}]*column-gap:\s*6px/);
   assert.match(appCss, /\.editor-meta-star\.is-active\s*\{[^}]*background:\s*transparent[^}]*color:\s*var\(--text\)/);
 });
 

@@ -135,3 +135,10 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - **Aa** opens a compact editor-format menu with **Todo** and **Settings** when there is no text selection.
 - The selection-formatting palette remains selection-only and never appears just because the editor has a caret.
 - Backspace at the start of a todo removes the todo formatting first and keeps the caret at the start of the text; a second Backspace can then merge with the previous line normally. Empty todos become ordinary blank lines.
+
+## Revision 4.13 — v0.4.13
+- Adds a dedicated Todo control to the upper metadata toolbar immediately to the right of Star, using Lucide's Check icon.
+- **Aa** again opens Appearance/Settings directly; the intermediate Todo/Settings popup is removed.
+- Todo still remains available in the selected-text formatting palette.
+- The editor remembers the last in-editor caret or selection so the upper Todo control can reliably start, convert, remove, or apply todos even after the browser moves focus to the toolbar.
+- The bottom bar remains **Library, Tags, Aa, Share, More**.

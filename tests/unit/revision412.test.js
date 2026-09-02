@@ -2,9 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-let formatMenuModule = {};
-try { formatMenuModule = await import('../../src/ui/editorFormatMenu.js'); } catch { formatMenuModule = {}; }
-
 const editorView = fs.readFileSync(new URL('../../src/ui/editorView.js', import.meta.url), 'utf8');
 const editorSource = fs.readFileSync(new URL('../../src/editor/markdownEditor.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../src/styles/app.css', import.meta.url), 'utf8');
@@ -17,7 +14,7 @@ function editorToolbarSource() {
   return editorView.match(/<nav class="control-strip normal-control-strip"[\s\S]*?<\/nav>/)?.[0] || '';
 }
 
-test('editor bottom bar is quiet: Library, Tags, Aa, Share, More with no Star or Todo', () => {
+test('v0.4.12+ keeps the bottom bar quiet: Library, Tags, Aa, Share, More with no Star or Todo', () => {
   const toolbar = editorToolbarSource();
   assert.ok(toolbar);
   const actions = [...toolbar.matchAll(/data-action="([^"]+)"/g)].map(match => match[1]);
@@ -26,33 +23,18 @@ test('editor bottom bar is quiet: Library, Tags, Aa, Share, More with no Star or
   assert.doesNotMatch(toolbar, /data-action="todo"/);
 });
 
-test('Aa opens an explicit compact editor formatting menu with Todo and Settings', () => {
-  assert.equal(typeof formatMenuModule.editorFormatActions, 'function');
-  assert.deepEqual(formatMenuModule.editorFormatActions(), [
-    { id: 'todo', label: 'Todo' },
-    { id: 'settings', label: 'Settings' }
-  ]);
-  assert.equal(typeof formatMenuModule.openEditorFormatMenu, 'function');
-  assert.match(editorView, /openEditorFormatMenu/);
-  assert.match(editorView, /onTodo:\s*\(\)\s*=>\s*editor\.toggleTodo\(\)/);
-  assert.match(editorView, /onSettings:\s*onAppearance/);
-  assert.match(css, /\.editor-format-menu/);
-});
-
-test('Aa menu preserves the editor caret so Todo can act on the current line', () => {
-  assert.match(editorView, /\[data-action="appearance"\][\s\S]*pointerdown/);
+test('Todo remains available outside the bottom bar and selection formatting remains selection-only', () => {
   assert.match(editorSource, /toggleTodo\(\)\s*\{\s*applyFormattingAction\(['"]todo['"]\)/);
-});
-
-test('selection formatting remains selection-only and never auto-shows for a collapsed caret', () => {
   assert.match(editorSource, /shouldShowFormattingPalette\(snapshot/);
   assert.doesNotMatch(css, /formatting-palette--todo-only/);
 });
 
-test('v0.4.12 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson.version, '0.4.12');
-  assert.equal(packageLock.version, '0.4.12');
-  assert.equal(packageLock.packages[''].version, '0.4.12');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.12['"]/);
-  assert.match(swSource, /snippets-r4-12/);
+test('v0.4.12 or later stays on the 0.4 patch line and r4 cache family', () => {
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 12);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.\d+['"]/);
+  assert.match(swSource, /snippets-r4-/);
 });

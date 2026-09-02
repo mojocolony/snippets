@@ -3,7 +3,6 @@ import { makeLibraryItem } from '../domain/libraryItem.js';
 import { EDITOR_FONTS } from './appearanceSheet.js';
 import { featherIconMarkup } from './brandIcon.js';
 import { batchIconMarkup } from './batchIcons.js';
-import { openEditorFormatMenu } from './editorFormatMenu.js';
 
 function renderTags(container, tags = []) {
   container.replaceChildren(...tags.map(tag => {
@@ -156,6 +155,11 @@ export function renderEditorView(root, {
                 <polygon points="9,2.216 10.969,7.006 16.133,7.399 12.186,10.751 13.408,15.784 9,13.066 4.592,15.784 5.814,10.751 1.867,7.399 7.031,7.006"></polygon>
               </svg>
             </button>
+            <button type="button" class="editor-meta-todo editor-meta-control" data-action="meta-todo" aria-label="Todo">
+              <svg class="editor-meta-icon editor-meta-todo-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M20 6 9 17l-5-5"></path>
+              </svg>
+            </button>
             <button type="button" class="editor-meta-tag-area" data-action="meta-tags" aria-label="Edit tags">
               <span class="editor-meta-tag-list"></span>
               <span class="editor-meta-empty-tag">Add tag…</span>
@@ -171,7 +175,7 @@ export function renderEditorView(root, {
         <nav class="control-strip normal-control-strip" data-testid="control-strip" aria-label="Snippet controls">
           <button class="control-button" data-action="library" aria-label="Library" title="Library">${batchIconMarkup('menu')}</button>
           <button class="control-button" data-action="tags" aria-label="Tags" title="Tags">${batchIconMarkup('tag')}</button>
-          <button class="control-button control-aa" data-action="appearance" aria-label="Formatting and settings" title="Formatting and settings" aria-haspopup="menu" aria-expanded="false">Aa</button>
+          <button class="control-button control-aa" data-action="appearance" aria-label="Appearance and settings" title="Appearance and settings">Aa</button>
           <button class="control-button" data-action="share" aria-label="Share" title="Share">${batchIconMarkup('share')}</button>
           <button class="control-button control-more" data-action="more" aria-label="More" title="More">${batchIconMarkup('ellipsis')}</button>
         </nav>
@@ -184,6 +188,7 @@ export function renderEditorView(root, {
   const tabButtons = [...root.querySelectorAll('.desktop-library-tabs [data-scope]')];
   const status = root.querySelector('.editor-status');
   const metaStar = root.querySelector('[data-action="meta-star"]');
+  const metaTodo = root.querySelector('[data-action="meta-todo"]');
   const metaTags = root.querySelector('[data-action="meta-tags"]');
   const metaAddTag = root.querySelector('[data-action="meta-add-tag"]');
   const metaTagList = root.querySelector('.editor-meta-tag-list');
@@ -270,17 +275,9 @@ export function renderEditorView(root, {
   metaTags.addEventListener('click', onTags);
   metaAddTag.addEventListener('click', onTags);
   metaStar.addEventListener('click', onStar);
-  let editorFormatMenu = null;
-  appearance.addEventListener('pointerdown', event => event.preventDefault());
-  appearance.addEventListener('click', () => {
-    editorFormatMenu?.close();
-    editorFormatMenu = openEditorFormatMenu({
-      anchor: appearance,
-      onTodo: () => editor.toggleTodo(),
-      onSettings: onAppearance,
-      onClose: () => { editorFormatMenu = null; }
-    });
-  });
+  metaTodo.addEventListener('pointerdown', event => event.preventDefault());
+  metaTodo.addEventListener('click', () => editor.toggleTodo());
+  appearance.addEventListener('click', onAppearance);
   share.addEventListener('click', onShare);
   root.querySelector('[data-action="more"]').addEventListener('click', onMore);
   root.querySelector('[data-action="new-sidebar"]').addEventListener('click', onNew);
@@ -305,7 +302,6 @@ export function renderEditorView(root, {
     focus() { editor.focus(); },
     getValue() { return editor.getValue(); },
     destroy() {
-      editorFormatMenu?.close();
       window.removeEventListener('blur', clearTransientToolbarFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       editor.destroy();
