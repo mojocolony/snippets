@@ -89,3 +89,51 @@ export function backspaceAtLineStart(doc, lineIndex) {
   }
   return { doc: source, lineIndex, caretOffset: 0, handled: false };
 }
+
+export function replaceEditorSelection(doc, selection, insertText = '') {
+  const parts = lines(doc);
+  if (!parts.length) return { doc: String(doc), lineIndex: 0, caretOffset: 0 };
+
+  let startLine = Math.max(0, Math.min(Number(selection?.startLine) || 0, parts.length - 1));
+  let endLine = Math.max(0, Math.min(Number(selection?.endLine) || 0, parts.length - 1));
+  let startOffset = Math.max(0, Number(selection?.startOffset) || 0);
+  let endOffset = Math.max(0, Number(selection?.endOffset) || 0);
+  if (endLine < startLine || (endLine === startLine && endOffset < startOffset)) {
+    [startLine, endLine] = [endLine, startLine];
+    [startOffset, endOffset] = [endOffset, startOffset];
+  }
+
+  const startRaw = parts[startLine] ?? '';
+  const endRaw = parts[endLine] ?? '';
+  const startTodo = parseTodoLine(startRaw);
+  const startText = startTodo ? startTodo.text : startRaw;
+  const endTodo = parseTodoLine(endRaw);
+  const endText = endTodo ? endTodo.text : endRaw;
+  startOffset = Math.min(startOffset, startText.length);
+  endOffset = Math.min(endOffset, endText.length);
+
+  const before = startText.slice(0, startOffset);
+  const after = endText.slice(endOffset);
+  const inserted = String(insertText).replace(/\r/g, '').split('\n');
+  let replacement;
+  let lineIndex;
+  let caretOffset;
+
+  if (inserted.length === 1) {
+    replacement = [before + inserted[0] + after];
+    lineIndex = startLine;
+    caretOffset = before.length + inserted[0].length;
+  } else {
+    replacement = [
+      before + inserted[0],
+      ...inserted.slice(1, -1),
+      inserted.at(-1) + after
+    ];
+    lineIndex = startLine + replacement.length - 1;
+    caretOffset = inserted.at(-1).length;
+  }
+
+  if (startTodo) replacement[0] = `${startTodo.checked ? '- [x] ' : '- [ ] '}${replacement[0]}`;
+  parts.splice(startLine, endLine - startLine + 1, ...replacement);
+  return { doc: parts.join('\n'), lineIndex, caretOffset };
+}

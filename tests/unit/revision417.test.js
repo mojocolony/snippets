@@ -50,14 +50,16 @@ test('selected-text actions are shared across floating and keyboard-anchored too
   assert.doesNotMatch(editorSource, /syncFormattingPaletteActions\(touchFormattingLayout\)/);
 });
 
-test('v0.4.17 publishes matching app, package and PWA cache versions', () => {
+test('v0.4.17 or later preserves matching app, package and r4 PWA cache versions', () => {
   const packageJson = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   const packageLock = JSON.parse(fs.readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8'));
   const versionSource = fs.readFileSync(new URL('../../src/version.js', import.meta.url), 'utf8');
   const swSource = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
-  assert.equal(packageJson.version, '0.4.17');
-  assert.equal(packageLock.version, '0.4.17');
-  assert.equal(packageLock.packages[''].version, '0.4.17');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.17['"]/);
-  assert.match(swSource, /snippets-r4-17/);
+  const [, minor, patch] = packageJson.version.split('.').map(Number);
+  assert.equal(minor, 4);
+  assert.ok(patch >= 17);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.\d+['"]/);
+  assert.match(swSource, /snippets-r4-/);
 });

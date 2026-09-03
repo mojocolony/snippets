@@ -1,0 +1,15 @@
+Snippets v0.4.19 deployment repair
+
+The v0.4.19 lean update was packaged assuming the deployed repository was already v0.4.18. The actual GitHub repository was v0.4.17.
+
+Upload the CONTENTS of this folder to the root of the existing GitHub repository and allow GitHub to replace files with the same paths.
+
+Runtime repair:
+- src/editor/editorState.js
+  Adds replaceEditorSelection(), required by the deployed v0.4.19 markdownEditor.js. Without it, the browser rejects the ES-module graph and Snippets renders a blank page.
+
+Repository consistency only:
+- tests/unit/revision417.test.js
+  Updates the older v0.4.17 release assertion so the complete v0.4.19 test suite is consistent.
+
+No data, Supabase, authentication, or storage files are changed.
