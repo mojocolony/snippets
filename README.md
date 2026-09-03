@@ -162,3 +162,12 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Uses Lucide Heading, Bold, Italic, and Strikethrough icons in the iOS/iPadOS selected-text keyboard toolbar, alongside the existing Lucide Check and Link icons.
 - Keeps the underlying actions and order unchanged: Todo, Highlight, Bold, Italic, Strikethrough, Link.
 - Desktop retains its existing floating selection controls.
+
+
+## Revision 4.17 — v0.4.17
+
+- Corrects the touch/iOS selected-text toolbar to **Todo, Heading, Bold, Italic, Strikethrough, Highlight, Link** in that exact order.
+- Uses Lucide Check, Heading, Bold, Italic, Strikethrough, Highlighter, and Link SVG icons at a consistent 18×18 size.
+- Heading is now a real Markdown heading action rather than a Heading icon wired to Highlight; it toggles selected lines as level-one headings.
+- The same seven icon actions are used in the floating desktop selection palette and the iPhone/iPad toolbar; keyboard visibility only controls whether the toolbar docks above the on-screen keyboard.
+- Code is removed from the selected-text toolbar on every layout. Inline code Markdown support itself is unchanged.
