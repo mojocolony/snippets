@@ -294,10 +294,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -1px;
   height: 1px;
   background: var(--muted);
 }
+.editor-line-text.is-drop-target--before::after { top: -1px; }
+.editor-line-text.is-drop-target--after::after { bottom: -1px; }
 .editor-line-text strong { font-weight: 650; }
 .editor-line-text em { font-style: italic; }
 .editor-line-text code {
@@ -1297,7 +1298,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 // ---- src/version.js ----
-const APP_VERSION = '0.4.20';
+const APP_VERSION = '0.4.21';
 
 
 // ---- src/domain/snippetText.js ----
@@ -2584,6 +2585,12 @@ function moveLine(doc, fromIndex, toIndex) {
   return lines.join('\n');
 }
 
+function dropIndicatorEdge(fromIndex, toIndex) {
+  if (toIndex < fromIndex) return 'before';
+  if (toIndex > fromIndex) return 'after';
+  return null;
+}
+
 
 // ---- src/editor/editorState.js ----
 function lines(doc) { return String(doc).split('\n'); }
@@ -2979,7 +2986,7 @@ function mountMarkdownEditor(host, {
   }
 
   function clearDropTargets() {
-    surface.querySelectorAll('.editor-line-text.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
+    surface.querySelectorAll('.editor-line-text.is-drop-target').forEach(el => el.classList.remove('is-drop-target', 'is-drop-target--before', 'is-drop-target--after'));
   }
 
   function lineIndexAtClientY(clientY) {
@@ -3026,7 +3033,10 @@ function mountMarkdownEditor(host, {
         const targetIndex = lineIndexAtClientY(event.clientY);
         if (Number.isInteger(targetIndex) && canReorderTodo(doc, dragState.from, targetIndex)) {
           clearDropTargets();
-          surface.querySelector(`.editor-line-text[data-line-index="${targetIndex}"]`)?.classList.add('is-drop-target');
+          const edge = dropIndicatorEdge(dragState.from, targetIndex);
+          if (edge) {
+            surface.querySelector(`.editor-line-text[data-line-index="${targetIndex}"]`)?.classList.add('is-drop-target', `is-drop-target--${edge}`);
+          }
           dragState.to = targetIndex;
         }
       });
@@ -3093,13 +3103,20 @@ function mountMarkdownEditor(host, {
     queueGutterSync();
   }
 
+  function syncGutterEditingState(index) {
+    const item = gutter.querySelector(`.editor-gutter-item[data-line-index="${index}"]`);
+    if (!item) return;
+    item.classList.toggle('is-editing', index === activeLineIndex);
+  }
+
   function renderLine(index) {
     if (destroyed) return;
     const existing = surface.querySelector(`.editor-line-text[data-line-index="${index}"]`);
     if (!existing) return;
     const line = doc.split('\n')[index] ?? '';
     existing.replaceWith(makeTextLine(line, index));
-    renderGutter();
+    syncGutterEditingState(index);
+    queueGutterSync();
   }
 
   function setCaretForLine(lineIndex, caretOffset) {

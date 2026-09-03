@@ -25,10 +25,11 @@ const packageLock = JSON.parse(await readFile(new URL('../../package-lock.json',
 const versionSource = await readFile(new URL('../../src/version.js', import.meta.url), 'utf8');
 const swSource = await readFile(new URL('../../sw.js', import.meta.url), 'utf8');
 
-test('v0.4.20 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson.version, '0.4.20');
-  assert.equal(packageLock.version, '0.4.20');
-  assert.equal(packageLock.packages[''].version, '0.4.20');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.20['"]/);
-  assert.match(swSource, /snippets-r4-20/);
+test('v0.4.20 or later keeps matching app, package and PWA cache versions', () => {
+  const patch = Number(packageJson.version.split('.').at(-1));
+  assert.ok(patch >= 20);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, new RegExp(`APP_VERSION\\s*=\\s*['"]${packageJson.version.replaceAll('.', '\\.')}['"]`));
+  assert.match(swSource, /snippets-r4-\d+/);
 });

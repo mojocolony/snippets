@@ -191,3 +191,11 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 
 - Slash command **Select snippets** now enters multi-select mode with no snippet preselected on desktop or mobile.
 - Existing direct-selection entry points still select the initiating snippet when appropriate.
+
+
+## Revision 4.21 — v0.4.21
+
+- Moving the caret between list/todo lines no longer tears down and recreates the checkbox/drag-handle gutter, eliminating checkbox flicker during Arrow Up/Down navigation.
+- Caret-line rerenders now update the existing gutter row's editing state in place and only remeasure gutter geometry.
+- Structural todo changes (toggle, add/remove todo lines, reorder, full rerender) still rebuild the gutter when required.
+- Dragging a todo upward now shows the drop indicator above the target row (including above the first item); downward drags continue to show it below the target row.
