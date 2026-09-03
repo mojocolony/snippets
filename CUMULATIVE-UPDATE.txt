@@ -1,5 +1,14 @@
-Snippets v0.4.17 cumulative update
+Snippets v0.4.19 lean cumulative update
 
-This update is cumulative from v0.4.8. You may overlay these files onto a Snippets repository at v0.4.8 or any later 0.4.x release through v0.4.16.
+This is the small GitHub-browser-upload package for updating an existing v0.4.18 repository to v0.4.19.
 
-It includes the password-first authentication/editor restructuring from v0.4.9, Share/selection formatting from v0.4.10, toolbar/focus cleanup from v0.4.11, Todo/Backspace corrections from v0.4.12, the v0.4.13 upper-toolbar Todo control and remembered caret/selection target, the v0.4.14 iOS/iPadOS Craft-style keyboard formatting bar with VisualViewport tracking and pointer-down selection preservation, the v0.4.15 selected-text Todo/Link action update, the v0.4.16 Lucide formatting-icon pass, and the v0.4.17 correction that standardizes the selected-text toolbar everywhere as Todo, Heading, Bold, Italic, Strikethrough, Highlight, Link with Lucide icons, a real Markdown Heading action, no Code button, and consistent 18×18 icon sizing.
+It includes:
+- Slash commands: type / at a valid text boundary and filter commands such as /to, /h1 through /h4, /sta, and /sel.
+- Formatting commands: Todo, Heading 1–4, Bold, Italic, Strikethrough, Highlight, and Link.
+- Snippet commands: Star/Unstar, Pin/Unpin, Archive/Unarchive, and Tags.
+- Library commands: Select snippets and New snippet.
+- Desktop keyboard navigation for the slash palette and touch-friendly mobile/iPad presentation.
+- H1–H4 support in the editor, including an H1/H2/H3/H4 chooser from the selected-text Heading control.
+- Existing selected-text toolbar order remains Todo, Heading, Bold, Italic, Strikethrough, Highlight, Link.
+
+Upload the CONTENTS of this folder to the root of the existing GitHub repository and allow GitHub to replace files with the same paths.

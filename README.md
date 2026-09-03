@@ -171,3 +171,19 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Heading is now a real Markdown heading action rather than a Heading icon wired to Highlight; it toggles selected lines as level-one headings.
 - The same seven icon actions are used in the floating desktop selection palette and the iPhone/iPad toolbar; keyboard visibility only controls whether the toolbar docks above the on-screen keyboard.
 - Code is removed from the selected-text toolbar on every layout. Inline code Markdown support itself is unchanged.
+
+## Revision 4.18 — v0.4.18
+
+- Keeps the selected text mapped to the same underlying characters after inline formatting, so a second toolbar action can immediately stack on the first (for example Bold + Italic) without reselecting the text.
+- Handles deletion/replacement of any non-collapsed selection through Snippets' Markdown source model instead of leaving same-line deletion to native `contenteditable` mutation.
+- Normalizes backward (right-to-left) selections before replacement and clears the native range before rerendering, preventing the stale/duplicate caret artifact seen after deleting a backward selection.
+
+## Revision 4.19 — v0.4.19
+
+- Adds a searchable `/` command palette inside the editor for Todo, H1–H4, Bold, Italic, Strikethrough, Highlight, Link, Star/Unstar, Pin/Unpin, Archive/Unarchive, Tags, Select snippets, and New snippet.
+- Slash commands open only at the start of a line or after whitespace; typing filters the list, Arrow keys + Enter work on desktop, and Escape/tapping away leaves the typed slash text untouched.
+- Formatting slash commands work from a collapsed caret by inserting Markdown syntax and placing the caret in the useful position; Link keeps the existing safe http/https URL normalization.
+- `/ Select` reuses the existing multi-select UI: the desktop sidebar opens and enters selection mode, while mobile/tablet opens Library in selection mode.
+- Heading formatting now supports H1, H2, H3, and H4. The selected-text Lucide Heading control opens an H1–H4 chooser instead of always applying H1.
+- Existing selected-text toolbar order remains Todo, Heading, Bold, Italic, Strikethrough, Highlight, Link.
+

@@ -259,3 +259,13 @@
   font-size: 16px;
   flex: 0 0 auto;
 }
+
+
+@media (max-width: 899px) {
+  .slash-command-palette { max-height: 308px; padding: 5px; }
+  .slash-command-row { min-height: 44px; padding: 0 12px; }
+  .slash-command-label { font-size: 16px; }
+  .slash-command-alias { font-size: 11px; }
+  .slash-command-palette.is-keyboard-accessory { border-radius: 12px; }
+  .heading-level-button { min-width: 44px; height: 44px; font-size: 14px; }
+}

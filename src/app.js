@@ -371,6 +371,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
       onLibraryScope: scope => switchLibraryScope(scope),
       onOpenSnippet: id => showEditor(id),
       onNew: () => showEditor(null),
+      onEditorCommand: id => handleEditorCommand(id),
       onStartSelection: id => enterSelectionMode(id),
       onToggleSelection: id => toggleSelection(id),
       onRangeSelect: id => rangeSelect(id),
@@ -503,6 +504,60 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
     await refreshDesktopSidebar();
   }
 
+  async function togglePin() {
+    if (!state.currentContent.trim()) return;
+    await flushSave();
+    if (!state.currentSnippet) return;
+    await setPinnedSnippet(state.currentSnippet.pinned ? null : state.currentSnippet.id);
+    state.currentSnippet = await getSnippet(state.currentSnippet.id);
+    state.editorView?.updateMeta(state.currentSnippet);
+    await refreshDesktopSidebar();
+  }
+
+  async function toggleArchive() {
+    if (!state.currentContent.trim()) return;
+    await flushSave();
+    if (!state.currentSnippet) return;
+    const currentId = state.currentSnippet.id;
+    const wasArchived = Boolean(state.currentSnippet.archived);
+    const inboxBefore = !wasArchived && state.libraryScope === 'inbox'
+      ? await listSnippets({ scope: 'inbox' })
+      : [];
+    state.currentSnippet = await updateSnippet(currentId, { archived: !wasArchived });
+    state.editorView?.updateMeta(state.currentSnippet);
+    if (!wasArchived && state.libraryScope === 'inbox') {
+      if (isDesktop()) {
+        const nextId = chooseNextVisibleSnippet(inboxBefore, currentId);
+        await showEditor(nextId);
+      } else {
+        await showLibrary('inbox');
+      }
+      return;
+    }
+    await refreshDesktopSidebar();
+  }
+
+  async function handleEditorCommand(id) {
+    if (id === 'star') { await toggleStar(); return; }
+    if (id === 'pin') { await togglePin(); return; }
+    if (id === 'archive') { await toggleArchive(); return; }
+    if (id === 'tags') { await openEditorTags(); return; }
+    if (id === 'new') { await showEditor(null); return; }
+    if (id === 'select') {
+      const currentId = state.currentSnippet?.id || null;
+      if (isDesktop()) {
+        if (state.preferences.sidebarCollapsed) {
+          state.preferences = await setPreference('sidebarCollapsed', false);
+          state.editorView?.setSidebarCollapsed(false);
+        }
+        await enterSelectionMode(currentId);
+        return;
+      }
+      await showLibrary(state.libraryScope);
+      await enterSelectionMode(currentId);
+    }
+  }
+
   function openAppearance() {
     openAppearanceSheet({
       preferences: state.preferences,
@@ -569,27 +624,9 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
         await flushSave();
         if (!state.currentSnippet) return;
         if (id === 'pin') {
-          await setPinnedSnippet(state.currentSnippet.pinned ? null : state.currentSnippet.id);
-          state.currentSnippet = await getSnippet(state.currentSnippet.id);
-          state.editorView?.updateMeta(state.currentSnippet);
+          await togglePin();
         } else if (id === 'archive') {
-          const currentId = state.currentSnippet.id;
-          const wasArchived = Boolean(state.currentSnippet.archived);
-          const inboxBefore = !wasArchived && state.libraryScope === 'inbox'
-            ? await listSnippets({ scope: 'inbox' })
-            : [];
-          state.currentSnippet = await updateSnippet(currentId, { archived: !wasArchived });
-          state.editorView?.updateMeta(state.currentSnippet);
-          if (!wasArchived && state.libraryScope === 'inbox') {
-            if (isDesktop()) {
-              const nextId = chooseNextVisibleSnippet(inboxBefore, currentId);
-              await showEditor(nextId);
-            } else {
-              await showLibrary('inbox');
-            }
-            return;
-          }
-          await refreshDesktopSidebar();
+          await toggleArchive();
         } else if (id === 'copy') {
           await copyText(toPlainText(state.currentContent));
           showToast('Copied');

@@ -4,6 +4,19 @@ export function shouldShowFormattingPalette(selection, { suspended = false } = {
   return Boolean(selection && !selection.collapsed && !suspended);
 }
 
+
+export function selectionAfterFormatting(previousSelection, nextSelection) {
+  if (!nextSelection) return previousSelection || null;
+  return {
+    startLine: nextSelection.startLine,
+    startOffset: nextSelection.startOffset,
+    endLine: nextSelection.endLine,
+    endOffset: nextSelection.endOffset,
+    collapsed: false,
+    rect: previousSelection?.rect || null
+  };
+}
+
 const MARKERS = Object.freeze({
   bold: ['**', '**'],
   italic: ['_', '_'],
@@ -137,24 +150,43 @@ export function toggleTodoLines(doc, startLine, endLine = startLine) {
 }
 
 
-export function toggleHeadingLines(doc, startLine, endLine = startLine) {
+export function setHeadingLevel(doc, startLine, endLine = startLine, level = 1) {
   const lines = String(doc ?? '').split('\n');
-  if (!lines.length) return { doc: String(doc ?? ''), startLine: 0, endLine: 0, isHeading: false };
+  if (!lines.length) return { doc: String(doc ?? ''), startLine: 0, endLine: 0, isHeading: false, level: null };
+  const safeLevel = clamp(level, 1, 4);
   const from = clamp(Math.min(startLine, endLine), 0, lines.length - 1);
   const to = clamp(Math.max(startLine, endLine), from, lines.length - 1);
+  const prefix = '#'.repeat(safeLevel);
   const selected = lines.slice(from, to + 1);
-  const allHeadingOne = selected.every(line => /^#\s+/.test(line));
+  const allSameLevel = selected.every(line => new RegExp(`^${prefix}\\s+`).test(line));
 
   for (let index = from; index <= to; index += 1) {
     const line = lines[index] ?? '';
-    if (allHeadingOne) {
-      lines[index] = line.replace(/^#\s+/, '');
-      continue;
-    }
     const todo = parseTodoLine(line);
-    const text = (todo ? todo.text : line).replace(/^#{1,6}\s+/, '');
-    lines[index] = `# ${text}`;
+    const source = todo ? todo.text : line;
+    const text = source.replace(/^#{1,6}\s+/, '');
+    lines[index] = allSameLevel ? text : `${prefix} ${text}`;
   }
 
-  return { doc: lines.join('\n'), startLine: from, endLine: to, isHeading: !allHeadingOne };
+  return { doc: lines.join('\n'), startLine: from, endLine: to, isHeading: !allSameLevel, level: allSameLevel ? null : safeLevel };
+}
+
+export function toggleHeadingLines(doc, startLine, endLine = startLine) {
+  return setHeadingLevel(doc, startLine, endLine, 1);
+}
+
+export function insertInlineMarkersAtCaret(doc, lineIndex, offset, marker, closingMarker = marker) {
+  const lines = String(doc ?? '').split('\n');
+  if (!lines.length) lines.push('');
+  const index = clamp(lineIndex, 0, lines.length - 1);
+  const parts = editableParts(lines[index] ?? '');
+  const caret = clamp(offset, 0, parts.text.length);
+  lines[index] = parts.prefix + parts.text.slice(0, caret) + marker + closingMarker + parts.text.slice(caret);
+  return { doc: lines.join('\n'), lineIndex: index, caretOffset: caret + String(marker).length };
+}
+
+export function insertLinkAtCaret(doc, lineIndex, offset, href) {
+  const normalized = normalizeLinkHref(href);
+  if (!normalized) return { doc: String(doc ?? ''), lineIndex: clamp(lineIndex, 0, Math.max(0, String(doc ?? '').split('\n').length - 1)), caretOffset: Math.max(0, Number(offset) || 0) };
+  return insertInlineMarkersAtCaret(doc, lineIndex, offset, '[', `](${normalized})`);
 }

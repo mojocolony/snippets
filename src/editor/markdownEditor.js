@@ -1,9 +1,12 @@
 import { parseTodoLine, renderInlineMarkdown, splitLineForDisplay } from './markdownHelpers.js';
-import { applyEditorLineInput, backspaceAtLineStart, splitLineAt, toggleTodoAtLine } from './editorState.js';
+import { applyEditorLineInput, backspaceAtLineStart, replaceEditorSelection, splitLineAt, toggleTodoAtLine } from './editorState.js';
 import { moveLine } from './todoReorder.js';
 import { isSelectAllShortcut } from './editorNavigation.js';
-import { applyInlineFormat, shouldShowFormattingPalette, toggleHeadingLines, toggleTodoLines } from './selectionFormatting.js';
+import { applyInlineFormat, insertInlineMarkersAtCaret, insertLinkAtCaret, normalizeLinkHref, selectionAfterFormatting, setHeadingLevel, shouldShowFormattingPalette, toggleTodoLines } from './selectionFormatting.js';
 import { formattingActionsForLayout, keyboardAccessoryGeometry, shouldAnchorFormattingBarToKeyboard, shouldUseKeyboardFormattingBar } from './formattingViewport.js';
+import { filterSlashCommands, parseSlashQuery, slashCommandsForContext } from './slashCommands.js';
+import { createSlashCommandPalette } from '../ui/slashCommandPalette.js';
+import { openHeadingLevelMenu } from '../ui/headingLevelMenu.js';
 
 function offsetWithin(element, container, containerOffset) {
   if (!element || !container || !element.contains(container)) return 0;
@@ -138,7 +141,25 @@ function setTextSelection(surface, element, start, end = start) {
   });
 }
 
-export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fontFamily, fontSize = 18 } = {}) {
+function setTextRangeSelection(surface, startElement, startOffset, endElement, endOffset) {
+  surface.focus({ preventScroll: true });
+  requestAnimationFrame(() => {
+    if (!startElement?.isConnected || !endElement?.isConnected) return;
+    const startPoint = textPointForOffset(startElement, startOffset);
+    const endPoint = textPointForOffset(endElement, endOffset);
+    const range = document.createRange();
+    range.setStart(startPoint.node, startPoint.offset);
+    range.setEnd(endPoint.node, endPoint.offset);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
+}
+
+export function mountMarkdownEditor(host, {
+  value = '', onChange = () => {}, fontFamily, fontSize = 18,
+  commandContext = () => ({}), onAppCommand = () => {}
+} = {}) {
   let doc = String(value);
   let destroyed = false;
   let dragState = null;
@@ -151,7 +172,10 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   let formattingSuspended = false;
   let formattingInteractionActive = false;
   let pointerFormattingAction = null;
+  let formattingActionAnchor = null;
   let gutterSyncFrame = null;
+  let slashState = null;
+  let headingLevelMenu = null;
   const visualViewport = window.visualViewport;
   const touchFormattingLayout = shouldUseKeyboardFormattingBar({ maxTouchPoints: navigator.maxTouchPoints });
   let formattingViewportBaselineHeight = Math.max(visualViewport?.height || 0, window.innerHeight || 0);
@@ -195,6 +219,12 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   syncFormattingPaletteActions();
   host.replaceChildren(gutter, surface, palette);
 
+  const slashPalette = createSlashCommandPalette({
+    host: document.body,
+    onExecute: id => executeSlashCommand(id),
+    onDismiss: () => { slashState = null; }
+  });
+
   function notify() { if (!destroyed) onChange(doc); }
 
   function applyAppearance(nextFamily = fontFamily, nextSize = fontSize) {
@@ -218,7 +248,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     span.className = `editor-line-text editor-line--${display.type}`;
     span.dataset.lineIndex = String(index);
     if (display.type === 'todo' && display.checked) span.classList.add('is-complete');
-    if (display.type === 'heading') span.classList.add(`heading-${Math.min(display.level, 3)}`);
+    if (display.type === 'heading') span.classList.add(`heading-${Math.min(display.level, 4)}`);
     if (editing) {
       span.classList.add('is-editing');
       const raw = editableTextForLine(line);
@@ -476,6 +506,115 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     };
   }
 
+  function currentCaretRect() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    const range = selection.getRangeAt(0).cloneRange();
+    range.collapse(false);
+    const rect = range.getBoundingClientRect();
+    if (rect && (rect.width || rect.height || rect.top || rect.left)) return rect;
+    return spanForNode(surface, selection.anchorNode)?.getBoundingClientRect?.() || null;
+  }
+
+  function closeSlashPalette() {
+    slashState = null;
+    slashPalette.close();
+  }
+
+  function syncSlashPalette() {
+    if (destroyed || wholeDocumentSelected) return closeSlashPalette();
+    const info = selectionLineInfo();
+    if (!info || !info.selection?.isCollapsed || !info.span.classList.contains('is-editing')) return closeSlashPalette();
+    const parsed = parseSlashQuery(info.span.textContent || '', info.offset);
+    if (!parsed) return closeSlashPalette();
+    slashState = { lineIndex: info.index, ...parsed };
+    let context = {};
+    try { context = commandContext?.() || {}; } catch { context = {}; }
+    const commands = filterSlashCommands(slashCommandsForContext(context), parsed.query);
+    slashPalette.open({ commands, rect: currentCaretRect(), isTouch: touchFormattingLayout });
+  }
+
+  function removeSlashToken(state) {
+    if (!state || !Number.isInteger(state.lineIndex)) return null;
+    const lines = doc.split('\n');
+    const raw = lines[state.lineIndex] ?? '';
+    const editable = editableTextForLine(raw);
+    const start = Math.max(0, Math.min(state.start, editable.length));
+    const end = Math.max(start, Math.min(state.end, editable.length));
+    const nextText = editable.slice(0, start) + editable.slice(end);
+    const result = applyEditorLineInput(doc, state.lineIndex, nextText, start);
+    const beforeLine = result.doc.split('\n')[state.lineIndex] ?? '';
+    doc = result.doc;
+    activeLineIndex = state.lineIndex;
+    return { lineIndex: state.lineIndex, caretOffset: result.caretOffset, line: beforeLine };
+  }
+
+  function headingPrefixLength(line) {
+    return String(line ?? '').match(/^#{1,6}\s+/)?.[0].length || 0;
+  }
+
+  async function executeSlashCommand(commandId) {
+    const state = slashState ? { ...slashState } : null;
+    if (!state) return false;
+
+    let normalizedHref = null;
+    if (commandId === 'link') {
+      normalizedHref = normalizeLinkHref(prompt('Link URL'));
+      if (!normalizedHref) return false;
+    }
+
+    const removed = removeSlashToken(slashState);
+    if (!removed) return false;
+    closeSlashPalette();
+
+    if (commandId === 'todo') {
+      const result = toggleTodoLines(doc, removed.lineIndex, removed.lineIndex);
+      doc = result.doc;
+      activeLineIndex = removed.lineIndex;
+      render(removed.lineIndex, Math.min(removed.caretOffset, editableTextForLine(doc.split('\n')[removed.lineIndex] ?? '').length));
+      notify();
+      return true;
+    }
+
+    if (/^heading-[1-4]$/.test(commandId)) {
+      const level = Number(commandId.slice(-1));
+      const beforeLine = doc.split('\n')[removed.lineIndex] ?? '';
+      const result = setHeadingLevel(doc, removed.lineIndex, removed.lineIndex, level);
+      doc = result.doc;
+      const afterLine = doc.split('\n')[removed.lineIndex] ?? '';
+      const contentOffset = Math.max(0, removed.caretOffset - headingPrefixLength(beforeLine));
+      const nextCaret = contentOffset + headingPrefixLength(afterLine);
+      activeLineIndex = removed.lineIndex;
+      render(removed.lineIndex, nextCaret);
+      notify();
+      return true;
+    }
+
+    const markerByCommand = { bold: '**', italic: '_', strike: '~~', highlight: '==' };
+    if (markerByCommand[commandId]) {
+      const result = insertInlineMarkersAtCaret(doc, removed.lineIndex, removed.caretOffset, markerByCommand[commandId]);
+      doc = result.doc;
+      activeLineIndex = result.lineIndex;
+      render(result.lineIndex, result.caretOffset);
+      notify();
+      return true;
+    }
+
+    if (commandId === 'link') {
+      const result = insertLinkAtCaret(doc, removed.lineIndex, removed.caretOffset, normalizedHref);
+      doc = result.doc;
+      activeLineIndex = result.lineIndex;
+      render(result.lineIndex, result.caretOffset);
+      notify();
+      return true;
+    }
+
+    render(removed.lineIndex, removed.caretOffset);
+    notify();
+    await onAppCommand?.(commandId);
+    return true;
+  }
+
   function hideFormattingPalette() {
     formattingSelection = null;
     palette.hidden = true;
@@ -538,21 +677,46 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     formattingSyncFrame = requestAnimationFrame(updateFormattingPalette);
   }
 
+  function openHeadingChooser(snapshot, anchor) {
+    if (!snapshot || snapshot.collapsed) return;
+    formattingSelection = { ...snapshot };
+    rememberEditorSelection(snapshot);
+    const linesBefore = doc.split('\n');
+    const startDisplayOffset = Math.max(0, snapshot.startOffset - headingPrefixLength(linesBefore[snapshot.startLine] ?? ''));
+    const endDisplayOffset = Math.max(0, snapshot.endOffset - headingPrefixLength(linesBefore[snapshot.endLine] ?? ''));
+    headingLevelMenu?.close?.(false);
+    headingLevelMenu = openHeadingLevelMenu({
+      anchor: anchor || palette.querySelector('[data-format-action="heading"]') || palette,
+      onSelect(level) {
+        headingLevelMenu = null;
+        const result = setHeadingLevel(doc, snapshot.startLine, snapshot.endLine, level);
+        if (result.doc === doc) return;
+        doc = result.doc;
+        wholeDocumentSelected = false;
+        activeLineIndex = null;
+        render();
+        notify();
+        const startElement = surface.querySelector(`.editor-line-text[data-line-index="${snapshot.startLine}"]`);
+        const endElement = surface.querySelector(`.editor-line-text[data-line-index="${snapshot.endLine}"]`);
+        if (startElement && endElement) {
+          setTextRangeSelection(surface, startElement, startDisplayOffset, endElement, endDisplayOffset);
+          requestAnimationFrame(() => requestAnimationFrame(queueFormattingPalette));
+        }
+      },
+      onClose() {
+        headingLevelMenu = null;
+        queueFormattingPalette();
+      }
+    });
+  }
+
   function applyFormattingAction(action) {
     const snapshot = currentFormattingSelection() || formattingSelection || rememberedEditorSelection || defaultEditorSelection();
     if (!snapshot) return;
     rememberEditorSelection(snapshot);
 
     if (action === 'heading') {
-      if (snapshot.collapsed) return;
-      const result = toggleHeadingLines(doc, snapshot.startLine, snapshot.endLine);
-      if (result.doc === doc) return;
-      doc = result.doc;
-      wholeDocumentSelected = false;
-      const lines = doc.split('\n');
-      activeLineIndex = snapshot.endLine;
-      render(activeLineIndex, editableTextForLine(lines[activeLineIndex] ?? '').length);
-      notify();
+      openHeadingChooser(snapshot, formattingActionAnchor || palette.querySelector('[data-format-action="heading"]'));
       return;
     }
 
@@ -580,56 +744,51 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     }
     const result = applyInlineFormat(doc, snapshot, action, options);
     if (result.doc === doc) return;
+    const nextSelection = selectionAfterFormatting(snapshot, result.selection);
     doc = result.doc;
     wholeDocumentSelected = false;
+    formattingSelection = { ...nextSelection };
+    rememberEditorSelection(nextSelection);
     notify();
 
-    if (result.selection.startLine === result.selection.endLine) {
-      activeLineIndex = result.selection.startLine;
+    if (nextSelection.startLine === nextSelection.endLine) {
+      activeLineIndex = nextSelection.startLine;
       render();
       const target = surface.querySelector(`.editor-line-text[data-line-index="${activeLineIndex}"]`);
-      if (target) setTextSelection(surface, target, result.selection.startOffset, result.selection.endOffset);
+      if (target) setTextSelection(surface, target, nextSelection.startOffset, nextSelection.endOffset);
       return;
     }
 
     const lines = doc.split('\n');
-    activeLineIndex = result.selection.endLine;
+    activeLineIndex = nextSelection.endLine;
     render(activeLineIndex, editableTextForLine(lines[activeLineIndex] ?? '').length);
   }
 
-  function replaceCrossLineSelection(insertText = '') {
-    const info = rangeLineInfo();
-    if (!info || info.startIndex === info.endIndex) return false;
-    const lines = doc.split('\n');
-    const startLine = lines[info.startIndex] ?? '';
-    const endLine = lines[info.endIndex] ?? '';
-    const startTodo = parseTodoLine(startLine);
-    const startEditable = editableTextForLine(startLine);
-    const endEditable = editableTextForLine(endLine);
-    const before = startEditable.slice(0, info.startOffset);
-    const after = endEditable.slice(info.endOffset);
-    const inserted = String(insertText).replace(/\r/g, '').split('\n');
-    let replacement;
-    let targetOffset;
-    if (inserted.length === 1) {
-      replacement = [before + inserted[0] + after];
-      targetOffset = before.length + inserted[0].length;
-    } else {
-      replacement = [
-        before + inserted[0],
-        ...inserted.slice(1, -1),
-        inserted.at(-1) + after
-      ];
-      targetOffset = inserted.at(-1).length;
-    }
-    if (startTodo) replacement[0] = `${startTodo.checked ? '- [x] ' : '- [ ] '}${replacement[0]}`;
-    lines.splice(info.startIndex, info.endIndex - info.startIndex + 1, ...replacement);
-    doc = lines.join('\n');
+  function replaceSelectionFromSnapshot(snapshot, insertText = '') {
+    if (!snapshot || snapshot.collapsed) return false;
+    const result = replaceEditorSelection(doc, snapshot, insertText);
+    window.getSelection()?.removeAllRanges();
+    hideFormattingPalette();
+    rememberedEditorSelection = {
+      startLine: result.lineIndex,
+      startOffset: result.caretOffset,
+      endLine: result.lineIndex,
+      endOffset: result.caretOffset,
+      collapsed: true,
+      rect: null
+    };
+    doc = result.doc;
     wholeDocumentSelected = false;
-    activeLineIndex = info.startIndex + replacement.length - 1;
-    render(activeLineIndex, targetOffset);
+    activeLineIndex = result.lineIndex;
+    render(result.lineIndex, result.caretOffset);
     notify();
     return true;
+  }
+
+  function replaceCrossLineSelection(insertText = '') {
+    const snapshot = currentFormattingSelection();
+    if (!snapshot || snapshot.startLine === snapshot.endLine) return false;
+    return replaceSelectionFromSnapshot(snapshot, insertText);
   }
 
   function selectWholeDocument() {
@@ -690,18 +849,21 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     }
     formattingInteractionActive = true;
     pointerFormattingAction = button.dataset.formatAction;
+    formattingActionAnchor = button;
     applyFormattingAction(button.dataset.formatAction);
     requestAnimationFrame(() => requestAnimationFrame(() => {
       formattingInteractionActive = false;
       queueFormattingPalette();
     }));
-    setTimeout(() => { pointerFormattingAction = null; }, 0);
+    setTimeout(() => { pointerFormattingAction = null; formattingActionAnchor = null; }, 0);
   });
   palette.addEventListener('click', event => {
     const button = event.target.closest?.('[data-format-action]');
     if (!button) return;
     if (pointerFormattingAction === button.dataset.formatAction) return;
+    formattingActionAnchor = button;
     applyFormattingAction(button.dataset.formatAction);
+    formattingActionAnchor = null;
   });
 
   surface.addEventListener('input', event => {
@@ -717,10 +879,36 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     if (result.becameTodo) render(index, result.caretOffset);
     else queueGutterSync();
     notify();
+    requestAnimationFrame(syncSlashPalette);
   });
 
   surface.addEventListener('keydown', event => {
     formattingSuspended = false;
+    if (slashPalette.isOpen()) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        event.stopPropagation();
+        slashPalette.moveActive(1);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        event.stopPropagation();
+        slashPalette.moveActive(-1);
+        return;
+      }
+      if (event.key === 'Enter' && slashPalette.executeActive()) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeSlashPalette();
+        return;
+      }
+    }
     if (isSelectAllShortcut(event)) {
       event.preventDefault();
       event.stopPropagation();
@@ -855,17 +1043,17 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       return;
     }
 
-    const rangeInfo = rangeLineInfo();
-    if (!rangeInfo || rangeInfo.startIndex === rangeInfo.endIndex) return;
+    const snapshot = currentFormattingSelection();
+    if (!snapshot || snapshot.collapsed) return;
     if (event.inputType === 'insertFromPaste') return;
     if (event.inputType?.startsWith('delete')) {
       event.preventDefault();
-      replaceCrossLineSelection('');
+      replaceSelectionFromSnapshot(snapshot, '');
       return;
     }
     if (event.inputType === 'insertText' || event.inputType === 'insertCompositionText') {
       event.preventDefault();
-      replaceCrossLineSelection(event.data || '');
+      replaceSelectionFromSnapshot(snapshot, event.data || '');
     }
   }, true);
 
@@ -886,6 +1074,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     if (snapshot) rememberEditorSelection(snapshot);
     queueSelectionSync();
     queueFormattingPalette();
+    if (slashPalette.isOpen()) requestAnimationFrame(syncSlashPalette);
   };
   document.addEventListener('selectionchange', handleSelectionChange);
 
@@ -922,6 +1111,9 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       activeLineIndex = null;
       wholeDocumentSelected = false;
       rememberedEditorSelection = null;
+      closeSlashPalette();
+      headingLevelMenu?.close?.(false);
+      headingLevelMenu = null;
       render();
     },
     focus() {
@@ -949,6 +1141,9 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       window.removeEventListener('blur', suspendFormattingPalette);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('selectionchange', handleSelectionChange);
+      slashPalette.destroy();
+      headingLevelMenu?.close?.(false);
+      headingLevelMenu = null;
       surface.contentEditable = 'false';
       host.replaceChildren();
     }

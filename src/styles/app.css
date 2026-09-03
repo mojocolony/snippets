@@ -266,6 +266,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .editor-line-text.heading-1 { font-size: 1.42em; line-height: 1.4; font-weight: 650; margin: .24em 0 .1em; }
 .editor-line-text.heading-2 { font-size: 1.22em; line-height: 1.45; font-weight: 650; margin: .18em 0 .08em; }
 .editor-line-text.heading-3 { font-size: 1.08em; line-height: 1.5; font-weight: 650; }
+.editor-line-text.heading-4 { font-size: 1.02em; line-height: 1.54; font-weight: 650; }
 .editor-line-text.is-editing { color: var(--text); }
 .editor-control-gutter {
   position: absolute;
@@ -891,6 +892,78 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .formatting-strike { text-decoration: line-through; }
 .formatting-code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; letter-spacing: -.05em; }
 .formatting-todo { font-size: 18px; font-weight: 400; }
+
+
+/* v0.4.19 slash commands and heading chooser */
+.slash-command-palette[hidden] { display: none !important; }
+.slash-command-palette {
+  position: fixed;
+  z-index: 48;
+  box-sizing: border-box;
+  max-height: 304px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  border: 1px solid color-mix(in srgb, var(--hairline) 88%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.slash-command-row {
+  width: 100%;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.slash-command-row.is-active,
+.slash-command-row:hover,
+.slash-command-row:focus-visible { background: var(--surface-strong); outline: none; }
+.slash-command-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.slash-command-alias { color: var(--muted); font: 500 11px/1.2 "IBM Plex Mono", ui-monospace, monospace; }
+.slash-command-empty { padding: 12px 10px; color: var(--muted); font-size: 13px; }
+
+.heading-level-menu {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--hairline) 88%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.heading-level-button {
+  min-width: 40px;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: 650 13px/1 var(--ui-font);
+  cursor: pointer;
+}
+.heading-level-button:hover,
+.heading-level-button:focus-visible { background: var(--surface-strong); outline: none; }
 
 /* v0.4.12 explicit Aa formatting menu */
 

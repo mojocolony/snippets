@@ -124,7 +124,7 @@ export function renderEditorView(root, {
   selectionMode = false, selectedIds = new Set(),
   onContentChange = () => {}, onLibrary = () => {}, onTags = () => {},
   onStar = () => {}, onAppearance = () => {}, onShare = () => {}, onMore = () => {},
-  onLibraryScope = () => {}, onOpenSnippet = () => {}, onNew = () => {},
+  onLibraryScope = () => {}, onOpenSnippet = () => {}, onNew = () => {}, onEditorCommand = () => {},
   onStartSelection = () => {}, onToggleSelection = () => {}, onRangeSelect = () => {},
   onBatchStar = () => {}, onBatchArchive = () => {}, onBatchTags = () => {}, onBatchDelete = () => {},
   onDoneSelection = () => {}
@@ -205,6 +205,12 @@ export function renderEditorView(root, {
     value: content,
     fontFamily: font.family,
     fontSize: preferences.fontSize,
+    commandContext: () => ({
+      starred: Boolean(snippet?.starred),
+      pinned: Boolean(snippet?.pinned),
+      archived: Boolean(snippet?.archived)
+    }),
+    onAppCommand: id => onEditorCommand(id),
     onChange(markdown) {
       share.disabled = !markdown.trim();
       onContentChange(markdown);
