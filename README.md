@@ -187,3 +187,7 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Heading formatting now supports H1, H2, H3, and H4. The selected-text Lucide Heading control opens an H1–H4 chooser instead of always applying H1.
 - Existing selected-text toolbar order remains Todo, Heading, Bold, Italic, Strikethrough, Highlight, Link.
 
+## Revision 4.20 — v0.4.20
+
+- Slash command **Select snippets** now enters multi-select mode with no snippet preselected on desktop or mobile.
+- Existing direct-selection entry points still select the initiating snippet when appropriate.

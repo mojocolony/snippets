@@ -100,10 +100,11 @@ test('slash palette is compact on desktop and touch friendly on mobile, and H4 h
   assert.match(responsiveCss419, /\.slash-command-row\s*\{[^}]*min-height:\s*44px/s);
 });
 
-test('v0.4.19 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson419.version, '0.4.19');
-  assert.equal(packageLock419.version, '0.4.19');
-  assert.equal(packageLock419.packages[''].version, '0.4.19');
-  assert.match(versionSource419, /APP_VERSION\s*=\s*['"]0\.4\.19['"]/);
-  assert.match(swSource419, /snippets-r4-19/);
+test('v0.4.19+ publishes matching app, package and PWA cache versions', () => {
+  const patch = Number(packageJson419.version.split('.').at(-1));
+  assert.ok(patch >= 19);
+  assert.equal(packageLock419.version, packageJson419.version);
+  assert.equal(packageLock419.packages[''].version, packageJson419.version);
+  assert.match(versionSource419, new RegExp(`APP_VERSION\\s*=\\s*['\"]${packageJson419.version.replaceAll('.', '\\.')}['\"]`));
+  assert.match(swSource419, new RegExp(`snippets-r4-${patch}`));
 });
