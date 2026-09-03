@@ -135,3 +135,26 @@ export function toggleTodoLines(doc, startLine, endLine = startLine) {
 
   return { doc: lines.join('\n'), startLine: from, endLine: to, isTodo: !allTodos };
 }
+
+
+export function toggleHeadingLines(doc, startLine, endLine = startLine) {
+  const lines = String(doc ?? '').split('\n');
+  if (!lines.length) return { doc: String(doc ?? ''), startLine: 0, endLine: 0, isHeading: false };
+  const from = clamp(Math.min(startLine, endLine), 0, lines.length - 1);
+  const to = clamp(Math.max(startLine, endLine), from, lines.length - 1);
+  const selected = lines.slice(from, to + 1);
+  const allHeadingOne = selected.every(line => /^#\s+/.test(line));
+
+  for (let index = from; index <= to; index += 1) {
+    const line = lines[index] ?? '';
+    if (allHeadingOne) {
+      lines[index] = line.replace(/^#\s+/, '');
+      continue;
+    }
+    const todo = parseTodoLine(line);
+    const text = (todo ? todo.text : line).replace(/^#{1,6}\s+/, '');
+    lines[index] = `# ${text}`;
+  }
+
+  return { doc: lines.join('\n'), startLine: from, endLine: to, isHeading: !allHeadingOne };
+}

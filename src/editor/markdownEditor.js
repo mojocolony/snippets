@@ -2,7 +2,7 @@ import { parseTodoLine, renderInlineMarkdown, splitLineForDisplay } from './mark
 import { applyEditorLineInput, backspaceAtLineStart, splitLineAt, toggleTodoAtLine } from './editorState.js';
 import { moveLine } from './todoReorder.js';
 import { isSelectAllShortcut } from './editorNavigation.js';
-import { applyInlineFormat, shouldShowFormattingPalette, toggleTodoLines } from './selectionFormatting.js';
+import { applyInlineFormat, shouldShowFormattingPalette, toggleHeadingLines, toggleTodoLines } from './selectionFormatting.js';
 import { formattingActionsForLayout, keyboardAccessoryGeometry, shouldAnchorFormattingBarToKeyboard, shouldUseKeyboardFormattingBar } from './formattingViewport.js';
 
 function offsetWithin(element, container, containerOffset) {
@@ -173,30 +173,26 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
   palette.setAttribute('role', 'toolbar');
   palette.setAttribute('aria-label', 'Text formatting');
   palette.hidden = true;
-  let paletteKeyboardAccessory = null;
+  let paletteActionsMounted = false;
 
-  function formattingButtonMarkup(action, { keyboardAccessory = false } = {}) {
+  function formattingButtonMarkup(action) {
     if (action === 'todo') return `<button type="button" class="formatting-button formatting-todo" data-format-action="todo" aria-label="Todo" title="Todo"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg></button>`;
-    if (keyboardAccessory && action === 'highlight') return `<button type="button" class="formatting-button formatting-highlight" data-format-action="highlight" aria-label="Highlight" title="Highlight"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 12h12"></path><path d="M6 20V4"></path><path d="M18 20V4"></path></svg></button>`;
-    if (keyboardAccessory && action === 'bold') return `<button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"></path></svg></button>`;
-    if (keyboardAccessory && action === 'italic') return `<button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="19" x2="10" y1="4" y2="4"></line><line x1="14" x2="5" y1="20" y2="20"></line><line x1="15" x2="9" y1="4" y2="20"></line></svg></button>`;
-    if (keyboardAccessory && action === 'strike') return `<button type="button" class="formatting-button formatting-strike" data-format-action="strike" aria-label="Strikethrough" title="Strikethrough"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M16 4H9a3 3 0 0 0-2.83 4"></path><path d="M14 12a4 4 0 0 1 0 8H6"></path><line x1="4" x2="20" y1="12" y2="12"></line></svg></button>`;
-    if (action === 'highlight') return `<button type="button" class="formatting-button formatting-highlight" data-format-action="highlight" aria-label="Highlight" title="Highlight">H</button>`;
-    if (action === 'bold') return `<button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>`;
-    if (action === 'italic') return `<button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><em>I</em></button>`;
-    if (action === 'strike') return `<button type="button" class="formatting-button formatting-strike" data-format-action="strike" aria-label="Strikethrough" title="Strikethrough">S</button>`;
-    if (action === 'code') return `<button type="button" class="formatting-button formatting-code" data-format-action="code" aria-label="Code" title="Code">&lt;/&gt;</button>`;
+    if (action === 'heading') return `<button type="button" class="formatting-button formatting-heading" data-format-action="heading" aria-label="Heading" title="Heading"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 12h12"></path><path d="M6 20V4"></path><path d="M18 20V4"></path></svg></button>`;
+    if (action === 'bold') return `<button type="button" class="formatting-button" data-format-action="bold" aria-label="Bold" title="Bold"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"></path></svg></button>`;
+    if (action === 'italic') return `<button type="button" class="formatting-button" data-format-action="italic" aria-label="Italic" title="Italic"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="19" x2="10" y1="4" y2="4"></line><line x1="14" x2="5" y1="20" y2="20"></line><line x1="15" x2="9" y1="4" y2="20"></line></svg></button>`;
+    if (action === 'strike') return `<button type="button" class="formatting-button formatting-strike" data-format-action="strike" aria-label="Strikethrough" title="Strikethrough"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M16 4H9a3 3 0 0 0-2.83 4"></path><path d="M14 12a4 4 0 0 1 0 8H6"></path><line x1="4" x2="20" y1="12" y2="12"></line></svg></button>`;
+    if (action === 'highlight') return `<button type="button" class="formatting-button formatting-highlight" data-format-action="highlight" aria-label="Highlight" title="Highlight"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 11-6 6v3h9l3-3"></path><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path></svg></button>`;
     if (action === 'link') return `<button type="button" class="formatting-button formatting-link" data-format-action="link" aria-label="Link" title="Link"><svg class="formatting-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></button>`;
     return '';
   }
 
-  function syncFormattingPaletteActions(keyboardAccessory) {
-    if (paletteKeyboardAccessory === keyboardAccessory) return;
-    paletteKeyboardAccessory = keyboardAccessory;
-    palette.innerHTML = formattingActionsForLayout({ keyboardAccessory }).map(action => formattingButtonMarkup(action, { keyboardAccessory })).join('');
+  function syncFormattingPaletteActions() {
+    if (paletteActionsMounted) return;
+    paletteActionsMounted = true;
+    palette.innerHTML = formattingActionsForLayout().map(formattingButtonMarkup).join('');
   }
 
-  syncFormattingPaletteActions(false);
+  syncFormattingPaletteActions();
   host.replaceChildren(gutter, surface, palette);
 
   function notify() { if (!destroyed) onChange(doc); }
@@ -511,7 +507,7 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
       viewportHeight
     });
     palette.classList.toggle('is-keyboard-accessory', useKeyboardAccessory);
-    syncFormattingPaletteActions(useKeyboardAccessory);
+    syncFormattingPaletteActions();
 
     if (useKeyboardAccessory) {
       const viewport = visualViewport || {
@@ -546,6 +542,19 @@ export function mountMarkdownEditor(host, { value = '', onChange = () => {}, fon
     const snapshot = currentFormattingSelection() || formattingSelection || rememberedEditorSelection || defaultEditorSelection();
     if (!snapshot) return;
     rememberEditorSelection(snapshot);
+
+    if (action === 'heading') {
+      if (snapshot.collapsed) return;
+      const result = toggleHeadingLines(doc, snapshot.startLine, snapshot.endLine);
+      if (result.doc === doc) return;
+      doc = result.doc;
+      wholeDocumentSelected = false;
+      const lines = doc.split('\n');
+      activeLineIndex = snapshot.endLine;
+      render(activeLineIndex, editableTextForLine(lines[activeLineIndex] ?? '').length);
+      notify();
+      return;
+    }
 
     if (action === 'todo') {
       const result = toggleTodoLines(doc, snapshot.startLine, snapshot.endLine);

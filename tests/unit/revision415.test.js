@@ -11,19 +11,19 @@ function actionIds(actions) {
   return actions.map(action => typeof action === 'string' ? action : action.id);
 }
 
-test('iOS keyboard accessory toolbar uses Todo, Highlight, Bold, Italic, Strike and Link in that order', () => {
+test('touch selection toolbar keeps Todo first, Link last, and excludes Code', () => {
   assert.equal(typeof viewportModule.formattingActionsForLayout, 'function');
   assert.deepEqual(
     actionIds(viewportModule.formattingActionsForLayout({ keyboardAccessory: true })),
-    ['todo', 'highlight', 'bold', 'italic', 'strike', 'link']
+    ['todo', 'heading', 'bold', 'italic', 'strike', 'highlight', 'link']
   );
 });
 
-test('desktop selection palette retains Code and does not add Todo', () => {
+test('floating selection palette uses the same icon action set as touch layouts', () => {
   assert.equal(typeof viewportModule.formattingActionsForLayout, 'function');
   assert.deepEqual(
     actionIds(viewportModule.formattingActionsForLayout({ keyboardAccessory: false })),
-    ['highlight', 'bold', 'italic', 'strike', 'code', 'link']
+    ['todo', 'heading', 'bold', 'italic', 'strike', 'highlight', 'link']
   );
 });
 

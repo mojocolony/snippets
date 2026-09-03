@@ -45,11 +45,11 @@ test('keyboard bar is used only when a touch visual viewport is substantially re
   assert.equal(viewportModule.shouldAnchorFormattingBarToKeyboard({ touchLayout: false, baselineHeight: 844, viewportHeight: 500 }), false);
 });
 
-test('desktop selection toolbar retains the v0.4.14 Craft-style action order and excludes Todo', () => {
+test('selection toolbar helper returns the current seven-action order on floating layouts', () => {
   assert.equal(typeof viewportModule.formattingActionsForLayout, 'function');
   assert.deepEqual(
     viewportModule.formattingActionsForLayout({ keyboardAccessory: false }),
-    ['highlight', 'bold', 'italic', 'strike', 'code', 'link']
+    ['todo', 'heading', 'bold', 'italic', 'strike', 'highlight', 'link']
   );
 });
 

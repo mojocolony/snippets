@@ -887,6 +887,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   cursor: pointer;
 }
 .formatting-button:hover, .formatting-button:focus-visible { background: var(--surface-strong); outline: none; }
+.formatting-icon { display: block; width: 18px; height: 18px; }
 .formatting-strike { text-decoration: line-through; }
 .formatting-code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; letter-spacing: -.05em; }
 .formatting-todo { font-size: 18px; font-weight: 400; }
