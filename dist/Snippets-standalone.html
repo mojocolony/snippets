@@ -283,7 +283,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .editor-line-text.editor-line--todo { padding-left: 60px; }
 .editor-line-text.editor-line--bullet { padding-left: 24px; }
-.editor-line-text.editor-line--bullet.is-editing { padding-left: 0; }
 .editor-line-text.editor-line--quote {
   border-left: 2px solid var(--hairline);
   padding-left: 14px;
@@ -355,7 +354,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   user-select: none;
 }
 .bullet-marker::before { content: "•"; }
-.editor-gutter-item--bullet.is-editing .bullet-marker { visibility: hidden; }
 .todo-check-slot {
   width: 25px;
   height: 1.66em;
@@ -1298,7 +1296,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 // ---- src/version.js ----
-const APP_VERSION = '0.4.23';
+const APP_VERSION = '0.4.24';
 
 
 // ---- src/domain/snippetText.js ----

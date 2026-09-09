@@ -213,3 +213,8 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Checklist Return behavior now exits checklist mode when the current todo is empty instead of creating another empty checkbox.
 - Bulleted lists are now first-class editor blocks: `- ` immediately becomes a bullet, Return continues the list, Return on an empty bullet exits to a normal blank line, and Backspace at the start removes bullet formatting before merging lines.
 - Replaces the Lucide Feather brand mark with Lucide Notebook Pen everywhere, including the grey-on-grey iOS/PWA install icon, sidebar wordmark, and authentication wordmark.
+
+## Revision 4.24 — v0.4.24
+
+- Keeps bulleted-list markers visible while the bullet line is actively being edited; active bullets retain the same 24 px indentation as rendered bullets instead of jumping left.
+- The underlying v0.4.23 list model already continued bullets on Return and exited on a second Return from an empty bullet; the active-line presentation now exposes that behavior correctly instead of hiding the new bullet.
