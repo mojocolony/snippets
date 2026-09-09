@@ -5,6 +5,9 @@ import {
 import { listTagsWithCounts, setSnippetTag, toggleSnippetTag } from './storage/tagRepository.js';
 import { getPreferences, setPreference } from './storage/preferencesRepository.js';
 import { chooseLaunchTarget } from './domain/launchPolicy.js';
+import {
+  clearRefreshEditorSession, isReloadNavigation, readRefreshEditorSession, writeRefreshEditorSession
+} from './domain/refreshSession.js';
 import { toPlainText } from './domain/snippetText.js';
 import { buildSharePayload } from './domain/sharePayload.js';
 import { renderEditorView } from './ui/editorView.js';
@@ -57,6 +60,9 @@ async function shareText(payload, fallbackText = '') {
 }
 
 export async function createApp(root, { onSignOut = null, onChangePassword = null } = {}) {
+  const sessionStorageRef = (() => {
+    try { return window.sessionStorage; } catch { return null; }
+  })();
   const desktopMedia = matchMedia('(min-width: 900px)');
   const isDesktop = () => desktopMedia.matches;
 
@@ -318,6 +324,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
         } else if (state.currentSnippet.content !== markdown) {
           state.currentSnippet = await updateSnippet(state.currentSnippet.id, { content: markdown });
         }
+        writeRefreshEditorSession(sessionStorageRef, state.currentSnippet?.id ?? null);
         state.editorView?.updateMeta(state.currentSnippet);
         await refreshDesktopSidebar();
       } catch (error) {
@@ -341,6 +348,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
     state.currentSnippet = null;
     state.currentContent = '';
     state.pendingMarkdown = null;
+    clearRefreshEditorSession(sessionStorageRef);
   }
 
   async function showEditor(id = null) {
@@ -350,6 +358,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
     state.currentSnippet = id ? await getSnippet(id) : null;
     state.currentContent = state.currentSnippet?.content || '';
     state.pendingMarkdown = null;
+    writeRefreshEditorSession(sessionStorageRef, state.currentSnippet?.id ?? null);
 
     const libraryItems = isDesktop() ? await listSnippets({ scope: state.libraryScope }) : [];
     state.editorView = renderEditorView(root, {
@@ -760,10 +769,13 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
   document.addEventListener('keydown', handleGlobalShortcut);
 
   const initialSnippets = await listSnippets({ scope: 'all' });
+  const isReload = isReloadNavigation(performance);
   const target = chooseLaunchTarget({
     snippets: initialSnippets,
     returnWindow: state.preferences.returnWindow,
-    captureFirst: !isDesktop()
+    captureFirst: !isDesktop(),
+    isReload,
+    refreshSession: isReload ? readRefreshEditorSession(sessionStorageRef) : null
   });
   if (target.type === 'snippet') await showEditor(target.id);
   else if (target.type === 'inbox') await showLibrary('inbox');

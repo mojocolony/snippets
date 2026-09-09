@@ -218,3 +218,9 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 
 - Keeps bulleted-list markers visible while the bullet line is actively being edited; active bullets retain the same 24 px indentation as rendered bullets instead of jumping left.
 - The underlying v0.4.23 list model already continued bullets on Return and exited on a second Return from an empty bullet; the active-line presentation now exposes that behavior correctly instead of hiding the new bullet.
+
+## Revision 4.25 — v0.4.25
+
+- Refreshing Snippets now reopens the exact snippet that was on screen instead of re-running the normal most-recently-edited launch choice.
+- A genuine fresh launch still follows the existing pinned-snippet and return-window rules.
+- Blank capture is also preserved across a page reload.

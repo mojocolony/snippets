@@ -1296,7 +1296,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 // ---- src/version.js ----
-const APP_VERSION = '0.4.24';
+const APP_VERSION = '0.4.25';
 
 
 // ---- src/domain/snippetText.js ----
@@ -1362,8 +1362,15 @@ const RETURN_WINDOWS = Object.freeze({
   always: Number.POSITIVE_INFINITY
 });
 
-function chooseLaunchTarget({ snippets = [], now = Date.now(), returnWindow = '60s', captureFirst = false } = {}) {
+function chooseLaunchTarget({ snippets = [], now = Date.now(), returnWindow = '60s', captureFirst = false, isReload = false, refreshSession = null } = {}) {
   const live = snippets.filter(snippet => snippet && snippet.deletedAt == null);
+
+  if (isReload && refreshSession?.screen === 'editor') {
+    if (refreshSession.snippetId == null) return { type: 'blank' };
+    const resumed = live.find(snippet => snippet.id === refreshSession.snippetId);
+    if (resumed) return { type: 'snippet', id: resumed.id };
+  }
+
   const pinned = live.find(snippet => snippet.pinned);
   if (pinned) return { type: 'snippet', id: pinned.id };
   if (captureFirst) return { type: 'blank' };
@@ -5691,6 +5698,9 @@ async function shareText(payload, fallbackText = '') {
 }
 
 async function createApp(root, { onSignOut = null, onChangePassword = null } = {}) {
+  const sessionStorageRef = (() => {
+    try { return window.sessionStorage; } catch { return null; }
+  })();
   const desktopMedia = matchMedia('(min-width: 900px)');
   const isDesktop = () => desktopMedia.matches;
 
@@ -5952,6 +5962,7 @@ async function createApp(root, { onSignOut = null, onChangePassword = null } = {
         } else if (state.currentSnippet.content !== markdown) {
           state.currentSnippet = await updateSnippet(state.currentSnippet.id, { content: markdown });
         }
+        writeRefreshEditorSession(sessionStorageRef, state.currentSnippet?.id ?? null);
         state.editorView?.updateMeta(state.currentSnippet);
         await refreshDesktopSidebar();
       } catch (error) {
@@ -5975,6 +5986,7 @@ async function createApp(root, { onSignOut = null, onChangePassword = null } = {
     state.currentSnippet = null;
     state.currentContent = '';
     state.pendingMarkdown = null;
+    clearRefreshEditorSession(sessionStorageRef);
   }
 
   async function showEditor(id = null) {
@@ -5984,6 +5996,7 @@ async function createApp(root, { onSignOut = null, onChangePassword = null } = {
     state.currentSnippet = id ? await getSnippet(id) : null;
     state.currentContent = state.currentSnippet?.content || '';
     state.pendingMarkdown = null;
+    writeRefreshEditorSession(sessionStorageRef, state.currentSnippet?.id ?? null);
 
     const libraryItems = isDesktop() ? await listSnippets({ scope: state.libraryScope }) : [];
     state.editorView = renderEditorView(root, {
@@ -6394,10 +6407,13 @@ async function createApp(root, { onSignOut = null, onChangePassword = null } = {
   document.addEventListener('keydown', handleGlobalShortcut);
 
   const initialSnippets = await listSnippets({ scope: 'all' });
+  const isReload = isReloadNavigation(performance);
   const target = chooseLaunchTarget({
     snippets: initialSnippets,
     returnWindow: state.preferences.returnWindow,
-    captureFirst: !isDesktop()
+    captureFirst: !isDesktop(),
+    isReload,
+    refreshSession: isReload ? readRefreshEditorSession(sessionStorageRef) : null
   });
   if (target.type === 'snippet') await showEditor(target.id);
   else if (target.type === 'inbox') await showLibrary('inbox');
