@@ -1298,7 +1298,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 // ---- src/version.js ----
-const APP_VERSION = '0.4.21';
+const APP_VERSION = '0.4.23';
 
 
 // ---- src/domain/snippetText.js ----
@@ -2165,6 +2165,12 @@ function parseTodoLine(line = '') {
   return { prefix: match[1], checked, text: match[3] };
 }
 
+function parseBulletLine(line = '') {
+  const match = String(line).match(/^(\s*([-*+])\s+)(.*)$/);
+  if (!match || /^\[[ xX]\]\s+/.test(match[3])) return null;
+  return { prefix: match[1], marker: match[2], text: match[3] };
+}
+
 function escapeHtml(value = '') {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -2222,6 +2228,79 @@ function renderInlineMarkdown(source = '', { autoLink = true } = {}) {
   return html;
 }
 
+function inlineTokenAt(source, index) {
+  const rest = source.slice(index);
+  const patterns = [
+    { regex: /^\[([^\]]+)\]\((https?:\/\/[^)]+)\)/, open: 1, group: 1, recurse: false },
+    { regex: /^`([^`]+)`/, open: 1, group: 1, recurse: false },
+    { regex: /^\*\*([^*]+)\*\*/, open: 2, group: 1, recurse: true },
+    { regex: /^__([^_]+)__/, open: 2, group: 1, recurse: true },
+    { regex: /^~~([^~]+)~~/, open: 2, group: 1, recurse: true },
+    { regex: /^==([^=]+)==/, open: 2, group: 1, recurse: true },
+    { regex: /^\*([^*]+)\*/, open: 1, group: 1, recurse: true },
+    { regex: /^_([^_]+)_/, open: 1, group: 1, recurse: true }
+  ];
+  for (const pattern of patterns) {
+    const match = rest.match(pattern.regex);
+    if (!match) continue;
+    const inner = match[pattern.group];
+    return {
+      length: match[0].length,
+      inner,
+      innerStart: index + pattern.open,
+      recurse: pattern.recurse
+    };
+  }
+  return null;
+}
+
+function renderedBoundaryMap(source, baseOffset = 0) {
+  const raw = String(source);
+  const boundaries = [baseOffset];
+  let index = 0;
+  while (index < raw.length) {
+    const token = inlineTokenAt(raw, index);
+    if (!token) {
+      boundaries.push(baseOffset + index + 1);
+      index += 1;
+      continue;
+    }
+
+    if (token.recurse) {
+      const innerMap = renderedBoundaryMap(token.inner, baseOffset + token.innerStart);
+      boundaries[boundaries.length - 1] = innerMap[0];
+      boundaries.push(...innerMap.slice(1));
+    } else {
+      boundaries[boundaries.length - 1] = baseOffset + token.innerStart;
+      for (let i = 1; i <= token.inner.length; i += 1) {
+        boundaries.push(baseOffset + token.innerStart + i);
+      }
+    }
+    index += token.length;
+  }
+  return boundaries;
+}
+
+function renderedOffsetToSourceOffset(source = '', renderedOffset = 0) {
+  const map = renderedBoundaryMap(String(source));
+  const requested = Math.max(0, Math.min(Number(renderedOffset) || 0, map.length - 1));
+  return map[requested] ?? String(source).length;
+}
+
+function editableOffsetForRenderedLine(line = '', renderedOffset = 0) {
+  const raw = String(line);
+  const todo = parseTodoLine(raw);
+  if (todo) return renderedOffsetToSourceOffset(todo.text, renderedOffset);
+  const bullet = parseBulletLine(raw);
+  if (bullet) return renderedOffsetToSourceOffset(bullet.text, renderedOffset);
+  const display = splitLineForDisplay(raw);
+  const mapped = renderedOffsetToSourceOffset(display.text ?? raw, renderedOffset);
+  if (display.type === 'heading' || display.type === 'quote') {
+    return Math.max(0, raw.length - String(display.text ?? '').length) + mapped;
+  }
+  return mapped;
+}
+
 function splitLineForDisplay(line = '') {
   const todo = parseTodoLine(line);
   if (todo) return { type: 'todo', ...todo };
@@ -2229,8 +2308,8 @@ function splitLineForDisplay(line = '') {
   if (heading) return { type: 'heading', level: heading[1].length, text: heading[2] };
   const quote = String(line).match(/^>\s?(.*)$/);
   if (quote) return { type: 'quote', text: quote[1] };
-  const bullet = String(line).match(/^\s*[-*+]\s+(.*)$/);
-  if (bullet) return { type: 'bullet', text: bullet[1] };
+  const bullet = parseBulletLine(line);
+  if (bullet) return { type: 'bullet', ...bullet };
   return { type: 'text', text: String(line) };
 }
 
@@ -2595,29 +2674,54 @@ function dropIndicatorEdge(fromIndex, toIndex) {
 // ---- src/editor/editorState.js ----
 function lines(doc) { return String(doc).split('\n'); }
 
+function blockForLine(line = '') {
+  return parseTodoLine(line) || parseBulletLine(line);
+}
+
+function prefixForBlock(block) {
+  if (!block) return '';
+  if ('checked' in block) return block.prefix;
+  return block.prefix;
+}
+
 function applyEditorLineInput(doc, lineIndex, text, caretOffset) {
   const parts = lines(doc);
   const current = parts[lineIndex] ?? '';
   const currentTodo = parseTodoLine(current);
+  const currentBullet = parseBulletLine(current);
   const rawText = String(text);
   const rawCaret = Math.max(0, Math.min(Number(caretOffset) || 0, rawText.length));
 
   if (currentTodo) {
-    parts[lineIndex] = `${currentTodo.checked ? '- [x] ' : '- [ ] '}${rawText}`;
+    parts[lineIndex] = `${currentTodo.prefix}${rawText}`;
+    return { doc: parts.join('\n'), becameTodo: false, caretOffset: rawCaret };
+  }
+  if (currentBullet) {
+    parts[lineIndex] = `${currentBullet.prefix}${rawText}`;
     return { doc: parts.join('\n'), becameTodo: false, caretOffset: rawCaret };
   }
 
   parts[lineIndex] = rawText;
   const nextTodo = parseTodoLine(parts[lineIndex]);
-  if (!nextTodo) {
-    return { doc: parts.join('\n'), becameTodo: false, caretOffset: rawCaret };
+  if (nextTodo) {
+    return {
+      doc: parts.join('\n'),
+      becameTodo: true,
+      caretOffset: Math.max(0, rawCaret - nextTodo.prefix.length)
+    };
   }
 
-  return {
-    doc: parts.join('\n'),
-    becameTodo: true,
-    caretOffset: Math.max(0, rawCaret - nextTodo.prefix.length)
-  };
+  const nextBullet = parseBulletLine(parts[lineIndex]);
+  if (nextBullet) {
+    return {
+      doc: parts.join('\n'),
+      becameTodo: false,
+      becameBullet: true,
+      caretOffset: Math.max(0, rawCaret - nextBullet.prefix.length)
+    };
+  }
+
+  return { doc: parts.join('\n'), becameTodo: false, caretOffset: rawCaret };
 }
 
 function toggleTodoAtLine(doc, lineIndex) {
@@ -2632,7 +2736,8 @@ function toggleTodoAtLine(doc, lineIndex) {
 function replaceLineText(doc, lineIndex, text) {
   const parts = lines(doc);
   const todo = parseTodoLine(parts[lineIndex]);
-  parts[lineIndex] = todo ? `${todo.checked ? '- [x] ' : '- [ ] '}${text}` : String(text);
+  const bullet = parseBulletLine(parts[lineIndex]);
+  parts[lineIndex] = todo ? `${todo.prefix}${text}` : bullet ? `${bullet.prefix}${text}` : String(text);
   return parts.join('\n');
 }
 
@@ -2640,13 +2745,27 @@ function splitLineAt(doc, lineIndex, caretOffset) {
   const parts = lines(doc);
   const current = parts[lineIndex] ?? '';
   const todo = parseTodoLine(current);
-  const editable = todo ? todo.text : current;
+  const bullet = parseBulletLine(current);
+  const block = todo || bullet;
+  const editable = block ? block.text : current;
   const offset = Math.max(0, Math.min(caretOffset, editable.length));
   const before = editable.slice(0, offset);
   const after = editable.slice(offset);
+
   if (todo) {
-    parts[lineIndex] = `${todo.checked ? '- [x] ' : '- [ ] '}${before}`;
+    if (!editable.length) {
+      parts[lineIndex] = '';
+      return { doc: parts.join('\n'), lineIndex, caretOffset: 0 };
+    }
+    parts[lineIndex] = `${todo.prefix}${before}`;
     parts.splice(lineIndex + 1, 0, `- [ ] ${after}`);
+  } else if (bullet) {
+    if (!editable.length) {
+      parts[lineIndex] = '';
+      return { doc: parts.join('\n'), lineIndex, caretOffset: 0 };
+    }
+    parts[lineIndex] = `${bullet.prefix}${before}`;
+    parts.splice(lineIndex + 1, 0, `${bullet.prefix}${after}`);
   } else {
     parts[lineIndex] = before;
     parts.splice(lineIndex + 1, 0, after);
@@ -2657,13 +2776,13 @@ function splitLineAt(doc, lineIndex, caretOffset) {
 function mergeLineWithPrevious(doc, lineIndex) {
   const parts = lines(doc);
   if (lineIndex <= 0 || lineIndex >= parts.length) return { doc: String(doc), lineIndex, caretOffset: 0 };
-  const currentTodo = parseTodoLine(parts[lineIndex]);
-  const prevTodo = parseTodoLine(parts[lineIndex - 1]);
-  const currentText = currentTodo ? currentTodo.text : parts[lineIndex];
-  const prevText = prevTodo ? prevTodo.text : parts[lineIndex - 1];
+  const currentBlock = blockForLine(parts[lineIndex]);
+  const prevBlock = blockForLine(parts[lineIndex - 1]);
+  const currentText = currentBlock ? currentBlock.text : parts[lineIndex];
+  const prevText = prevBlock ? prevBlock.text : parts[lineIndex - 1];
   const caretOffset = prevText.length;
   const mergedText = prevText + currentText;
-  parts[lineIndex - 1] = prevTodo ? `${prevTodo.checked ? '- [x] ' : '- [ ] '}${mergedText}` : mergedText;
+  parts[lineIndex - 1] = prevBlock ? `${prefixForBlock(prevBlock)}${mergedText}` : mergedText;
   parts.splice(lineIndex, 1);
   return { doc: parts.join('\n'), lineIndex: lineIndex - 1, caretOffset };
 }
@@ -2672,9 +2791,9 @@ function backspaceAtLineStart(doc, lineIndex) {
   const source = String(doc);
   const parts = lines(source);
   const current = parts[lineIndex] ?? '';
-  const todo = parseTodoLine(current);
-  if (todo) {
-    parts[lineIndex] = todo.text;
+  const block = blockForLine(current);
+  if (block) {
+    parts[lineIndex] = block.text;
     return { doc: parts.join('\n'), lineIndex, caretOffset: 0, handled: true };
   }
   if (lineIndex > 0 && lineIndex < parts.length) {
@@ -2698,10 +2817,10 @@ function replaceEditorSelection(doc, selection, insertText = '') {
 
   const startRaw = parts[startLine] ?? '';
   const endRaw = parts[endLine] ?? '';
-  const startTodo = parseTodoLine(startRaw);
-  const startText = startTodo ? startTodo.text : startRaw;
-  const endTodo = parseTodoLine(endRaw);
-  const endText = endTodo ? endTodo.text : endRaw;
+  const startBlock = blockForLine(startRaw);
+  const endBlock = blockForLine(endRaw);
+  const startText = startBlock ? startBlock.text : startRaw;
+  const endText = endBlock ? endBlock.text : endRaw;
   startOffset = Math.min(startOffset, startText.length);
   endOffset = Math.min(endOffset, endText.length);
 
@@ -2726,7 +2845,7 @@ function replaceEditorSelection(doc, selection, insertText = '') {
     caretOffset = inserted.at(-1).length;
   }
 
-  if (startTodo) replacement[0] = `${startTodo.checked ? '- [x] ' : '- [ ] '}${replacement[0]}`;
+  if (startBlock) replacement[0] = `${prefixForBlock(startBlock)}${replacement[0]}`;
   parts.splice(startLine, endLine - startLine + 1, ...replacement);
   return { doc: parts.join('\n'), lineIndex, caretOffset };
 }
@@ -2802,7 +2921,9 @@ function isFencedCodeLine(source, lineIndex) {
 
 function editableTextForLine(line) {
   const todo = parseTodoLine(line);
-  return todo ? todo.text : String(line);
+  if (todo) return todo.text;
+  const bullet = parseBulletLine(line);
+  return bullet ? bullet.text : String(line);
 }
 
 function canReorderTodo(doc, fromIndex, toIndex) {
@@ -2824,14 +2945,7 @@ function lineIndexForSpan(span) {
 }
 
 function displayOffsetToEditable(line, displayOffset) {
-  const todo = parseTodoLine(line);
-  if (todo) return Math.max(0, Math.min(displayOffset, todo.text.length));
-  const display = splitLineForDisplay(line);
-  if (['heading', 'bullet', 'quote'].includes(display.type)) {
-    const prefixLength = Math.max(0, String(line).length - String(display.text ?? '').length);
-    return Math.max(0, Math.min(prefixLength + displayOffset, String(line).length));
-  }
-  return Math.max(0, Math.min(displayOffset, String(line).length));
+  return editableOffsetForRenderedLine(line, displayOffset);
 }
 
 function textPointForOffset(element, requestedOffset) {
@@ -2851,34 +2965,28 @@ function textPointForOffset(element, requestedOffset) {
   return { node: element, offset: 0 };
 }
 
-function setTextSelection(surface, element, start, end = start) {
-  surface.focus({ preventScroll: true });
-  requestAnimationFrame(() => {
-    if (!element.isConnected) return;
-    const startPoint = textPointForOffset(element, start);
-    const endPoint = textPointForOffset(element, end);
-    const range = document.createRange();
-    range.setStart(startPoint.node, startPoint.offset);
-    range.setEnd(endPoint.node, endPoint.offset);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-  });
+function setTextSelectionNow(surface, element, start, end = start) {
+  if (!element?.isConnected) return;
+  const startPoint = textPointForOffset(element, start);
+  const endPoint = textPointForOffset(element, end);
+  const range = document.createRange();
+  range.setStart(startPoint.node, startPoint.offset);
+  range.setEnd(endPoint.node, endPoint.offset);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
-function setTextRangeSelection(surface, startElement, startOffset, endElement, endOffset) {
-  surface.focus({ preventScroll: true });
-  requestAnimationFrame(() => {
-    if (!startElement?.isConnected || !endElement?.isConnected) return;
-    const startPoint = textPointForOffset(startElement, startOffset);
-    const endPoint = textPointForOffset(endElement, endOffset);
-    const range = document.createRange();
-    range.setStart(startPoint.node, startPoint.offset);
-    range.setEnd(endPoint.node, endPoint.offset);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-  });
+function setTextRangeSelectionNow(surface, startElement, startOffset, endElement, endOffset) {
+  if (!startElement?.isConnected || !endElement?.isConnected) return;
+  const startPoint = textPointForOffset(startElement, startOffset);
+  const endPoint = textPointForOffset(endElement, endOffset);
+  const range = document.createRange();
+  range.setStart(startPoint.node, startPoint.offset);
+  range.setEnd(endPoint.node, endPoint.offset);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 function mountMarkdownEditor(host, {
@@ -2899,6 +3007,8 @@ function mountMarkdownEditor(host, {
   let pointerFormattingAction = null;
   let formattingActionAnchor = null;
   let gutterSyncFrame = null;
+  let caretRestoreFrame = null;
+  let resumeSelection = null;
   let slashState = null;
   let headingLevelMenu = null;
   const visualViewport = window.visualViewport;
@@ -2943,6 +3053,26 @@ function mountMarkdownEditor(host, {
 
   syncFormattingPaletteActions();
   host.replaceChildren(gutter, surface, palette);
+
+  function queueTextSelection(element, start, end = start) {
+    if (caretRestoreFrame != null) cancelAnimationFrame(caretRestoreFrame);
+    surface.focus({ preventScroll: true });
+    caretRestoreFrame = requestAnimationFrame(() => {
+      caretRestoreFrame = null;
+      if (destroyed) return;
+      setTextSelectionNow(surface, element, start, end);
+    });
+  }
+
+  function queueTextRangeSelection(startElement, startOffset, endElement, endOffset) {
+    if (caretRestoreFrame != null) cancelAnimationFrame(caretRestoreFrame);
+    surface.focus({ preventScroll: true });
+    caretRestoreFrame = requestAnimationFrame(() => {
+      caretRestoreFrame = null;
+      if (destroyed) return;
+      setTextRangeSelectionNow(surface, startElement, startOffset, endElement, endOffset);
+    });
+  }
 
   const slashPalette = createSlashCommandPalette({
     host: document.body,
@@ -3129,7 +3259,7 @@ function mountMarkdownEditor(host, {
       rect: null
     });
     const target = surface.querySelector(`.editor-line-text[data-line-index="${lineIndex}"]`);
-    if (target) setTextSelection(surface, target, caretOffset);
+    if (target) queueTextSelection(target, caretOffset);
   }
 
   function render(focusIndex = null, caretOffset = 0) {
@@ -3171,7 +3301,7 @@ function mountMarkdownEditor(host, {
     if (!span || index == null) return null;
     const displayOffset = selectionOffset(span);
     const line = doc.split('\n')[index] ?? '';
-    const offset = span.classList.contains('is-editing')
+    const offset = span.classList.contains('is-editing') || isFencedCodeLine(doc, index)
       ? displayOffset
       : displayOffsetToEditable(line, displayOffset);
     return { selection, span, index, offset };
@@ -3189,10 +3319,10 @@ function mountMarkdownEditor(host, {
     const lines = doc.split('\n');
     const rawStart = offsetWithin(startSpan, range.startContainer, range.startOffset);
     const rawEnd = offsetWithin(endSpan, range.endContainer, range.endOffset);
-    const startOffset = startSpan.classList.contains('is-editing')
+    const startOffset = startSpan.classList.contains('is-editing') || isFencedCodeLine(doc, startIndex)
       ? rawStart
       : displayOffsetToEditable(lines[startIndex] ?? '', rawStart);
-    const endOffset = endSpan.classList.contains('is-editing')
+    const endOffset = endSpan.classList.contains('is-editing') || isFencedCodeLine(doc, endIndex)
       ? rawEnd
       : displayOffsetToEditable(lines[endIndex] ?? '', rawEnd);
     return { selection, range, startSpan, endSpan, startIndex, endIndex, startOffset, endOffset };
@@ -3223,6 +3353,39 @@ function mountMarkdownEditor(host, {
       rect: snapshot.rect || null
     };
     return rememberedEditorSelection;
+  }
+
+  function captureResumeSelection() {
+    formattingSuspended = true;
+    const snapshot = currentFormattingSelection() || rememberedEditorSelection;
+    if (snapshot?.collapsed && Number.isInteger(snapshot.startLine)) {
+      resumeSelection = {
+        startLine: snapshot.startLine,
+        startOffset: snapshot.startOffset,
+        endLine: snapshot.endLine,
+        endOffset: snapshot.endOffset,
+        collapsed: true,
+        rect: null
+      };
+      rememberEditorSelection(resumeSelection);
+    }
+    hideFormattingPalette();
+  }
+
+  function restoreResumeSelection() {
+    if (!resumeSelection || document.hidden || !document.hasFocus()) return;
+    const snapshot = resumeSelection;
+    resumeSelection = null;
+    formattingSuspended = false;
+    const lines = doc.split('\n');
+    const index = Math.max(0, Math.min(snapshot.startLine, lines.length - 1));
+    const offset = Math.max(0, Math.min(snapshot.startOffset, editableTextForLine(lines[index] ?? '').length));
+    if (activeLineIndex !== index) {
+      activeLineIndex = index;
+      renderLine(index);
+    }
+    const target = surface.querySelector(`.editor-line-text[data-line-index="${index}"]`);
+    if (target) queueTextSelection(target, offset);
   }
 
   function defaultEditorSelection() {
@@ -3434,7 +3597,7 @@ function mountMarkdownEditor(host, {
         const startElement = surface.querySelector(`.editor-line-text[data-line-index="${snapshot.startLine}"]`);
         const endElement = surface.querySelector(`.editor-line-text[data-line-index="${snapshot.endLine}"]`);
         if (startElement && endElement) {
-          setTextRangeSelection(surface, startElement, startDisplayOffset, endElement, endDisplayOffset);
+          queueTextRangeSelection(startElement, startDisplayOffset, endElement, endDisplayOffset);
           requestAnimationFrame(() => requestAnimationFrame(queueFormattingPalette));
         }
       },
@@ -3490,7 +3653,7 @@ function mountMarkdownEditor(host, {
       activeLineIndex = nextSelection.startLine;
       render();
       const target = surface.querySelector(`.editor-line-text[data-line-index="${activeLineIndex}"]`);
-      if (target) setTextSelection(surface, target, nextSelection.startOffset, nextSelection.endOffset);
+      if (target) queueTextSelection(target, nextSelection.startOffset, nextSelection.endOffset);
       return;
     }
 
@@ -3611,7 +3774,7 @@ function mountMarkdownEditor(host, {
     const offset = selectionOffset(span);
     const result = applyEditorLineInput(doc, index, span.textContent, offset);
     doc = result.doc;
-    if (result.becameTodo) render(index, result.caretOffset);
+    if (result.becameTodo || result.becameBullet) render(index, result.caretOffset);
     else queueGutterSync();
     notify();
     requestAnimationFrame(syncSlashPalette);
@@ -3671,7 +3834,7 @@ function mountMarkdownEditor(host, {
       renderLine(info.index);
       notify();
       const target = surface.querySelector(`.editor-line-text[data-line-index="${info.index}"]`);
-      if (target) setTextSelection(surface, target, formatted.start, formatted.end);
+      if (target) queueTextSelection(target, formatted.start, formatted.end);
       return;
     }
 
@@ -3723,12 +3886,14 @@ function mountMarkdownEditor(host, {
     const currentLines = doc.split('\n');
     const current = currentLines[info.index] ?? '';
     const todo = parseTodoLine(current);
-    const editable = todo ? todo.text : current;
+    const bullet = parseBulletLine(current);
+    const block = todo || bullet;
+    const editable = block ? block.text : current;
     const before = editable.slice(0, info.offset);
     const after = editable.slice(info.offset);
     const pasted = text.replace(/\r/g, '').split('\n');
     const replacement = [before + pasted[0], ...pasted.slice(1, -1), pasted.at(-1) + after];
-    if (todo) replacement[0] = `${todo.checked ? '- [x] ' : '- [ ] '}${replacement[0]}`;
+    if (block) replacement[0] = `${block.prefix}${replacement[0]}`;
     currentLines.splice(info.index, 1, ...replacement);
     doc = currentLines.join('\n');
     const targetIndex = info.index + replacement.length - 1;
@@ -3794,8 +3959,16 @@ function mountMarkdownEditor(host, {
 
   surface.addEventListener('blur', event => {
     if (destroyed || (event.relatedTarget && host.contains(event.relatedTarget))) return;
+    rememberEditorSelection();
     hideFormattingPalette();
-    deactivateActiveLine();
+    setTimeout(() => {
+      if (destroyed) return;
+      if (!document.hasFocus() || document.hidden) {
+        captureResumeSelection();
+        return;
+      }
+      deactivateActiveLine();
+    }, 0);
   });
 
   const handleSelectionChange = () => {
@@ -3813,15 +3986,15 @@ function mountMarkdownEditor(host, {
   };
   document.addEventListener('selectionchange', handleSelectionChange);
 
-  const suspendFormattingPalette = () => {
-    formattingSuspended = true;
-    hideFormattingPalette();
-  };
   const handleVisibilityChange = () => {
-    if (document.hidden) suspendFormattingPalette();
-    else hideFormattingPalette();
+    if (document.hidden) captureResumeSelection();
+    else {
+      hideFormattingPalette();
+      restoreResumeSelection();
+    }
   };
-  window.addEventListener('blur', suspendFormattingPalette);
+  window.addEventListener('blur', captureResumeSelection);
+  window.addEventListener('focus', restoreResumeSelection);
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
   const resizeHandler = () => { queueGutterSync(); queueFormattingPalette(); };
@@ -3846,6 +4019,8 @@ function mountMarkdownEditor(host, {
       activeLineIndex = null;
       wholeDocumentSelected = false;
       rememberedEditorSelection = null;
+      resumeSelection = null;
+      if (caretRestoreFrame != null) { cancelAnimationFrame(caretRestoreFrame); caretRestoreFrame = null; }
       closeSlashPalette();
       headingLevelMenu?.close?.(false);
       headingLevelMenu = null;
@@ -3869,11 +4044,13 @@ function mountMarkdownEditor(host, {
       if (selectionSyncFrame != null) cancelAnimationFrame(selectionSyncFrame);
       if (formattingSyncFrame != null) cancelAnimationFrame(formattingSyncFrame);
       if (gutterSyncFrame != null) cancelAnimationFrame(gutterSyncFrame);
+      if (caretRestoreFrame != null) cancelAnimationFrame(caretRestoreFrame);
       gutterObserver?.disconnect();
       window.removeEventListener('resize', resizeHandler);
       visualViewport?.removeEventListener('resize', visualViewportHandler);
       visualViewport?.removeEventListener('scroll', visualViewportHandler);
-      window.removeEventListener('blur', suspendFormattingPalette);
+      window.removeEventListener('blur', captureResumeSelection);
+      window.removeEventListener('focus', restoreResumeSelection);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('selectionchange', handleSelectionChange);
       slashPalette.destroy();
@@ -4852,7 +5029,7 @@ function renderEditorView(root, {
     <main class="editor-screen desktop-workspace${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}" data-testid="editor-screen">
       <aside class="desktop-sidebar" aria-label="Snippets">
         <div class="desktop-sidebar-head">
-          <span class="brand-lockup">${featherIconMarkup('brand-feather')}<span>Snippets</span></span>
+          <span class="brand-lockup">${notebookPenIconMarkup('brand-feather')}<span>Snippets</span></span>
           <button class="quiet-button desktop-new-button" data-action="new-sidebar" aria-label="New snippet" title="New snippet">＋</button>
         </div>
         <div class="desktop-sidebar-list"></div>
@@ -5462,7 +5639,7 @@ function renderAuthView(root, { onPasswordSignIn, onRequestLink, initialError = 
     const main = element('main', 'auth-screen');
     const panel = element('section', 'auth-panel');
     const wordmark = element('div', 'auth-wordmark brand-lockup');
-    wordmark.innerHTML = `${featherIconMarkup('brand-feather')}<span>Snippets</span>`;
+    wordmark.innerHTML = `${notebookPenIconMarkup('brand-feather')}<span>Snippets</span>`;
     panel.append(wordmark);
 
     if (mode === 'password') renderPasswordForm(panel);

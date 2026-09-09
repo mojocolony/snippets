@@ -1,4 +1,4 @@
-import { parseTodoLine, renderInlineMarkdown, splitLineForDisplay } from './markdownHelpers.js';
+import { editableOffsetForRenderedLine, parseBulletLine, parseTodoLine, renderInlineMarkdown, splitLineForDisplay } from './markdownHelpers.js';
 import { applyEditorLineInput, backspaceAtLineStart, replaceEditorSelection, splitLineAt, toggleTodoAtLine } from './editorState.js';
 import { moveLine, dropIndicatorEdge } from './todoReorder.js';
 import { isSelectAllShortcut } from './editorNavigation.js';
@@ -77,7 +77,9 @@ function isFencedCodeLine(source, lineIndex) {
 
 function editableTextForLine(line) {
   const todo = parseTodoLine(line);
-  return todo ? todo.text : String(line);
+  if (todo) return todo.text;
+  const bullet = parseBulletLine(line);
+  return bullet ? bullet.text : String(line);
 }
 
 function canReorderTodo(doc, fromIndex, toIndex) {
@@ -99,14 +101,7 @@ function lineIndexForSpan(span) {
 }
 
 function displayOffsetToEditable(line, displayOffset) {
-  const todo = parseTodoLine(line);
-  if (todo) return Math.max(0, Math.min(displayOffset, todo.text.length));
-  const display = splitLineForDisplay(line);
-  if (['heading', 'bullet', 'quote'].includes(display.type)) {
-    const prefixLength = Math.max(0, String(line).length - String(display.text ?? '').length);
-    return Math.max(0, Math.min(prefixLength + displayOffset, String(line).length));
-  }
-  return Math.max(0, Math.min(displayOffset, String(line).length));
+  return editableOffsetForRenderedLine(line, displayOffset);
 }
 
 function textPointForOffset(element, requestedOffset) {
@@ -126,34 +121,28 @@ function textPointForOffset(element, requestedOffset) {
   return { node: element, offset: 0 };
 }
 
-function setTextSelection(surface, element, start, end = start) {
-  surface.focus({ preventScroll: true });
-  requestAnimationFrame(() => {
-    if (!element.isConnected) return;
-    const startPoint = textPointForOffset(element, start);
-    const endPoint = textPointForOffset(element, end);
-    const range = document.createRange();
-    range.setStart(startPoint.node, startPoint.offset);
-    range.setEnd(endPoint.node, endPoint.offset);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-  });
+function setTextSelectionNow(surface, element, start, end = start) {
+  if (!element?.isConnected) return;
+  const startPoint = textPointForOffset(element, start);
+  const endPoint = textPointForOffset(element, end);
+  const range = document.createRange();
+  range.setStart(startPoint.node, startPoint.offset);
+  range.setEnd(endPoint.node, endPoint.offset);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
-function setTextRangeSelection(surface, startElement, startOffset, endElement, endOffset) {
-  surface.focus({ preventScroll: true });
-  requestAnimationFrame(() => {
-    if (!startElement?.isConnected || !endElement?.isConnected) return;
-    const startPoint = textPointForOffset(startElement, startOffset);
-    const endPoint = textPointForOffset(endElement, endOffset);
-    const range = document.createRange();
-    range.setStart(startPoint.node, startPoint.offset);
-    range.setEnd(endPoint.node, endPoint.offset);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-  });
+function setTextRangeSelectionNow(surface, startElement, startOffset, endElement, endOffset) {
+  if (!startElement?.isConnected || !endElement?.isConnected) return;
+  const startPoint = textPointForOffset(startElement, startOffset);
+  const endPoint = textPointForOffset(endElement, endOffset);
+  const range = document.createRange();
+  range.setStart(startPoint.node, startPoint.offset);
+  range.setEnd(endPoint.node, endPoint.offset);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 export function mountMarkdownEditor(host, {
@@ -174,6 +163,8 @@ export function mountMarkdownEditor(host, {
   let pointerFormattingAction = null;
   let formattingActionAnchor = null;
   let gutterSyncFrame = null;
+  let caretRestoreFrame = null;
+  let resumeSelection = null;
   let slashState = null;
   let headingLevelMenu = null;
   const visualViewport = window.visualViewport;
@@ -218,6 +209,26 @@ export function mountMarkdownEditor(host, {
 
   syncFormattingPaletteActions();
   host.replaceChildren(gutter, surface, palette);
+
+  function queueTextSelection(element, start, end = start) {
+    if (caretRestoreFrame != null) cancelAnimationFrame(caretRestoreFrame);
+    surface.focus({ preventScroll: true });
+    caretRestoreFrame = requestAnimationFrame(() => {
+      caretRestoreFrame = null;
+      if (destroyed) return;
+      setTextSelectionNow(surface, element, start, end);
+    });
+  }
+
+  function queueTextRangeSelection(startElement, startOffset, endElement, endOffset) {
+    if (caretRestoreFrame != null) cancelAnimationFrame(caretRestoreFrame);
+    surface.focus({ preventScroll: true });
+    caretRestoreFrame = requestAnimationFrame(() => {
+      caretRestoreFrame = null;
+      if (destroyed) return;
+      setTextRangeSelectionNow(surface, startElement, startOffset, endElement, endOffset);
+    });
+  }
 
   const slashPalette = createSlashCommandPalette({
     host: document.body,
@@ -404,7 +415,7 @@ export function mountMarkdownEditor(host, {
       rect: null
     });
     const target = surface.querySelector(`.editor-line-text[data-line-index="${lineIndex}"]`);
-    if (target) setTextSelection(surface, target, caretOffset);
+    if (target) queueTextSelection(target, caretOffset);
   }
 
   function render(focusIndex = null, caretOffset = 0) {
@@ -446,7 +457,7 @@ export function mountMarkdownEditor(host, {
     if (!span || index == null) return null;
     const displayOffset = selectionOffset(span);
     const line = doc.split('\n')[index] ?? '';
-    const offset = span.classList.contains('is-editing')
+    const offset = span.classList.contains('is-editing') || isFencedCodeLine(doc, index)
       ? displayOffset
       : displayOffsetToEditable(line, displayOffset);
     return { selection, span, index, offset };
@@ -464,10 +475,10 @@ export function mountMarkdownEditor(host, {
     const lines = doc.split('\n');
     const rawStart = offsetWithin(startSpan, range.startContainer, range.startOffset);
     const rawEnd = offsetWithin(endSpan, range.endContainer, range.endOffset);
-    const startOffset = startSpan.classList.contains('is-editing')
+    const startOffset = startSpan.classList.contains('is-editing') || isFencedCodeLine(doc, startIndex)
       ? rawStart
       : displayOffsetToEditable(lines[startIndex] ?? '', rawStart);
-    const endOffset = endSpan.classList.contains('is-editing')
+    const endOffset = endSpan.classList.contains('is-editing') || isFencedCodeLine(doc, endIndex)
       ? rawEnd
       : displayOffsetToEditable(lines[endIndex] ?? '', rawEnd);
     return { selection, range, startSpan, endSpan, startIndex, endIndex, startOffset, endOffset };
@@ -498,6 +509,39 @@ export function mountMarkdownEditor(host, {
       rect: snapshot.rect || null
     };
     return rememberedEditorSelection;
+  }
+
+  function captureResumeSelection() {
+    formattingSuspended = true;
+    const snapshot = currentFormattingSelection() || rememberedEditorSelection;
+    if (snapshot?.collapsed && Number.isInteger(snapshot.startLine)) {
+      resumeSelection = {
+        startLine: snapshot.startLine,
+        startOffset: snapshot.startOffset,
+        endLine: snapshot.endLine,
+        endOffset: snapshot.endOffset,
+        collapsed: true,
+        rect: null
+      };
+      rememberEditorSelection(resumeSelection);
+    }
+    hideFormattingPalette();
+  }
+
+  function restoreResumeSelection() {
+    if (!resumeSelection || document.hidden || !document.hasFocus()) return;
+    const snapshot = resumeSelection;
+    resumeSelection = null;
+    formattingSuspended = false;
+    const lines = doc.split('\n');
+    const index = Math.max(0, Math.min(snapshot.startLine, lines.length - 1));
+    const offset = Math.max(0, Math.min(snapshot.startOffset, editableTextForLine(lines[index] ?? '').length));
+    if (activeLineIndex !== index) {
+      activeLineIndex = index;
+      renderLine(index);
+    }
+    const target = surface.querySelector(`.editor-line-text[data-line-index="${index}"]`);
+    if (target) queueTextSelection(target, offset);
   }
 
   function defaultEditorSelection() {
@@ -709,7 +753,7 @@ export function mountMarkdownEditor(host, {
         const startElement = surface.querySelector(`.editor-line-text[data-line-index="${snapshot.startLine}"]`);
         const endElement = surface.querySelector(`.editor-line-text[data-line-index="${snapshot.endLine}"]`);
         if (startElement && endElement) {
-          setTextRangeSelection(surface, startElement, startDisplayOffset, endElement, endDisplayOffset);
+          queueTextRangeSelection(startElement, startDisplayOffset, endElement, endDisplayOffset);
           requestAnimationFrame(() => requestAnimationFrame(queueFormattingPalette));
         }
       },
@@ -765,7 +809,7 @@ export function mountMarkdownEditor(host, {
       activeLineIndex = nextSelection.startLine;
       render();
       const target = surface.querySelector(`.editor-line-text[data-line-index="${activeLineIndex}"]`);
-      if (target) setTextSelection(surface, target, nextSelection.startOffset, nextSelection.endOffset);
+      if (target) queueTextSelection(target, nextSelection.startOffset, nextSelection.endOffset);
       return;
     }
 
@@ -886,7 +930,7 @@ export function mountMarkdownEditor(host, {
     const offset = selectionOffset(span);
     const result = applyEditorLineInput(doc, index, span.textContent, offset);
     doc = result.doc;
-    if (result.becameTodo) render(index, result.caretOffset);
+    if (result.becameTodo || result.becameBullet) render(index, result.caretOffset);
     else queueGutterSync();
     notify();
     requestAnimationFrame(syncSlashPalette);
@@ -946,7 +990,7 @@ export function mountMarkdownEditor(host, {
       renderLine(info.index);
       notify();
       const target = surface.querySelector(`.editor-line-text[data-line-index="${info.index}"]`);
-      if (target) setTextSelection(surface, target, formatted.start, formatted.end);
+      if (target) queueTextSelection(target, formatted.start, formatted.end);
       return;
     }
 
@@ -998,12 +1042,14 @@ export function mountMarkdownEditor(host, {
     const currentLines = doc.split('\n');
     const current = currentLines[info.index] ?? '';
     const todo = parseTodoLine(current);
-    const editable = todo ? todo.text : current;
+    const bullet = parseBulletLine(current);
+    const block = todo || bullet;
+    const editable = block ? block.text : current;
     const before = editable.slice(0, info.offset);
     const after = editable.slice(info.offset);
     const pasted = text.replace(/\r/g, '').split('\n');
     const replacement = [before + pasted[0], ...pasted.slice(1, -1), pasted.at(-1) + after];
-    if (todo) replacement[0] = `${todo.checked ? '- [x] ' : '- [ ] '}${replacement[0]}`;
+    if (block) replacement[0] = `${block.prefix}${replacement[0]}`;
     currentLines.splice(info.index, 1, ...replacement);
     doc = currentLines.join('\n');
     const targetIndex = info.index + replacement.length - 1;
@@ -1069,8 +1115,16 @@ export function mountMarkdownEditor(host, {
 
   surface.addEventListener('blur', event => {
     if (destroyed || (event.relatedTarget && host.contains(event.relatedTarget))) return;
+    rememberEditorSelection();
     hideFormattingPalette();
-    deactivateActiveLine();
+    setTimeout(() => {
+      if (destroyed) return;
+      if (!document.hasFocus() || document.hidden) {
+        captureResumeSelection();
+        return;
+      }
+      deactivateActiveLine();
+    }, 0);
   });
 
   const handleSelectionChange = () => {
@@ -1088,15 +1142,15 @@ export function mountMarkdownEditor(host, {
   };
   document.addEventListener('selectionchange', handleSelectionChange);
 
-  const suspendFormattingPalette = () => {
-    formattingSuspended = true;
-    hideFormattingPalette();
-  };
   const handleVisibilityChange = () => {
-    if (document.hidden) suspendFormattingPalette();
-    else hideFormattingPalette();
+    if (document.hidden) captureResumeSelection();
+    else {
+      hideFormattingPalette();
+      restoreResumeSelection();
+    }
   };
-  window.addEventListener('blur', suspendFormattingPalette);
+  window.addEventListener('blur', captureResumeSelection);
+  window.addEventListener('focus', restoreResumeSelection);
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
   const resizeHandler = () => { queueGutterSync(); queueFormattingPalette(); };
@@ -1121,6 +1175,8 @@ export function mountMarkdownEditor(host, {
       activeLineIndex = null;
       wholeDocumentSelected = false;
       rememberedEditorSelection = null;
+      resumeSelection = null;
+      if (caretRestoreFrame != null) { cancelAnimationFrame(caretRestoreFrame); caretRestoreFrame = null; }
       closeSlashPalette();
       headingLevelMenu?.close?.(false);
       headingLevelMenu = null;
@@ -1144,11 +1200,13 @@ export function mountMarkdownEditor(host, {
       if (selectionSyncFrame != null) cancelAnimationFrame(selectionSyncFrame);
       if (formattingSyncFrame != null) cancelAnimationFrame(formattingSyncFrame);
       if (gutterSyncFrame != null) cancelAnimationFrame(gutterSyncFrame);
+      if (caretRestoreFrame != null) cancelAnimationFrame(caretRestoreFrame);
       gutterObserver?.disconnect();
       window.removeEventListener('resize', resizeHandler);
       visualViewport?.removeEventListener('resize', visualViewportHandler);
       visualViewport?.removeEventListener('scroll', visualViewportHandler);
-      window.removeEventListener('blur', suspendFormattingPalette);
+      window.removeEventListener('blur', captureResumeSelection);
+      window.removeEventListener('focus', restoreResumeSelection);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('selectionchange', handleSelectionChange);
       slashPalette.destroy();

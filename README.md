@@ -199,3 +199,17 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Caret-line rerenders now update the existing gutter row's editing state in place and only remeasure gutter geometry.
 - Structural todo changes (toggle, add/remove todo lines, reorder, full rerender) still rebuild the gutter when required.
 - Dragging a todo upward now shows the drop indicator above the target row (including above the first item); downward drags continue to show it below the target row.
+
+## Revision 4.22 — v0.4.22
+
+- Replaces the high-contrast black/white app icon with a muted grey-on-grey version.
+- Keeps the exact Lucide Feather geometry while uniformly scaling the feather down to 82% around the icon centre for more breathing room.
+- Exports the Apple touch icon and 192/512 PWA icons as full-square opaque RGB PNGs so iOS supplies the rounded-corner mask without exposing transparent/black corners.
+
+## Revision 4.23 — v0.4.23
+
+- Stabilizes editor caret handling: only the newest scheduled caret restore can run, and switching away from/returning to Snippets preserves the active line and collapsed caret instead of re-rendering the line on app blur.
+- Corrects rendered-text-to-Markdown offset mapping for bold, italic, strikethrough, highlight, inline code, links, headings, quotes, todos, and bullets so clicking formatted text reopens the raw Markdown at the intended character.
+- Checklist Return behavior now exits checklist mode when the current todo is empty instead of creating another empty checkbox.
+- Bulleted lists are now first-class editor blocks: `- ` immediately becomes a bullet, Return continues the list, Return on an empty bullet exits to a normal blank line, and Backspace at the start removes bullet formatting before merging lines.
+- Replaces the Lucide Feather brand mark with Lucide Notebook Pen everywhere, including the grey-on-grey iOS/PWA install icon, sidebar wordmark, and authentication wordmark.
