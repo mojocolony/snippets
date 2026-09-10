@@ -31,9 +31,9 @@ test('temporary app focus loss preserves the active line and restores its caret'
   assert.match(blurBody, /captureResumeSelection\(\)/);
 });
 
-test('Notebook Pen app icon keeps the grey-on-grey treatment and 82 percent inset', () => {
-  assert.match(iconSvg, /fill=["']#B7BAC0["']/i);
-  assert.match(iconSvg, /stroke=["']#666A70["']/i);
+test('Notebook Pen app icon keeps the light-grey/black treatment and 82 percent inset', () => {
+  assert.match(iconSvg, /fill=["']#E5E7EB["']/i);
+  assert.match(iconSvg, /stroke=["']#000000["']/i);
   assert.match(iconSvg, /translate\(12 12\)\s*scale\(0\.82\)\s*translate\(-12 -12\)/);
   assert.match(iconSvg, /M13\.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7\.4/);
 });

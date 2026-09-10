@@ -63,6 +63,9 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
   const sessionStorageRef = (() => {
     try { return window.sessionStorage; } catch { return null; }
   })();
+  const localStorageRef = (() => {
+    try { return window.localStorage; } catch { return null; }
+  })();
   const desktopMedia = matchMedia('(min-width: 900px)');
   const isDesktop = () => desktopMedia.matches;
 
@@ -96,6 +99,16 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
     if (state.preferences.themeMode === 'system') applyTheme('system');
   };
   systemTheme.addEventListener?.('change', systemThemeHandler);
+
+  function touchRefreshEditorSession(activeAt = Date.now()) {
+    writeRefreshEditorSession(sessionStorageRef, state.currentSnippet?.id ?? null, activeAt);
+    writeRefreshEditorSession(localStorageRef, state.currentSnippet?.id ?? null, activeAt);
+  }
+
+  function clearSavedEditorSession() {
+    clearRefreshEditorSession(sessionStorageRef);
+    clearRefreshEditorSession(localStorageRef);
+  }
 
   function resetSelectionState() {
     state.selectionMode = false;
@@ -304,6 +317,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
   function queueSave(markdown) {
     state.currentContent = markdown;
     state.pendingMarkdown = markdown;
+    touchRefreshEditorSession();
     state.editorView?.setShareEnabled(Boolean(markdown.trim()));
     clearTimeout(state.saveTimer);
     state.saveTimer = setTimeout(() => { flushSave(); }, 120);
@@ -324,7 +338,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
         } else if (state.currentSnippet.content !== markdown) {
           state.currentSnippet = await updateSnippet(state.currentSnippet.id, { content: markdown });
         }
-        writeRefreshEditorSession(sessionStorageRef, state.currentSnippet?.id ?? null);
+        touchRefreshEditorSession();
         state.editorView?.updateMeta(state.currentSnippet);
         await refreshDesktopSidebar();
       } catch (error) {
@@ -348,7 +362,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
     state.currentSnippet = null;
     state.currentContent = '';
     state.pendingMarkdown = null;
-    clearRefreshEditorSession(sessionStorageRef);
+    clearSavedEditorSession();
   }
 
   async function showEditor(id = null) {
@@ -358,7 +372,7 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
     state.currentSnippet = id ? await getSnippet(id) : null;
     state.currentContent = state.currentSnippet?.content || '';
     state.pendingMarkdown = null;
-    writeRefreshEditorSession(sessionStorageRef, state.currentSnippet?.id ?? null);
+    touchRefreshEditorSession();
 
     const libraryItems = isDesktop() ? await listSnippets({ scope: state.libraryScope }) : [];
     state.editorView = renderEditorView(root, {
@@ -769,20 +783,30 @@ export async function createApp(root, { onSignOut = null, onChangePassword = nul
   document.addEventListener('keydown', handleGlobalShortcut);
 
   const initialSnippets = await listSnippets({ scope: 'all' });
+  const startupAt = Date.now();
   const isReload = isReloadNavigation(performance);
+  const sessionResume = readRefreshEditorSession(sessionStorageRef, startupAt);
+  const persistentResume = readRefreshEditorSession(localStorageRef);
+  const refreshSession = [sessionResume, persistentResume]
+    .filter(Boolean)
+    .sort((a, b) => (b.activeAt || 0) - (a.activeAt || 0))[0] || null;
   const target = chooseLaunchTarget({
     snippets: initialSnippets,
+    now: startupAt,
     returnWindow: state.preferences.returnWindow,
     captureFirst: !isDesktop(),
     isReload,
-    refreshSession: isReload ? readRefreshEditorSession(sessionStorageRef) : null
+    refreshSession
   });
   if (target.type === 'snippet') await showEditor(target.id);
   else if (target.type === 'inbox') await showLibrary('inbox');
   else await showEditor(null);
 
   const flushOnHide = () => {
-    if (state.screen === 'editor') flushSave();
+    if (state.screen === 'editor') {
+      touchRefreshEditorSession();
+      flushSave();
+    }
   };
   window.addEventListener('pagehide', flushOnHide);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushOnHide(); });

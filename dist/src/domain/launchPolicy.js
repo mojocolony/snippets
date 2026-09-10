@@ -10,7 +10,13 @@ export const RETURN_WINDOWS = Object.freeze({
 export function chooseLaunchTarget({ snippets = [], now = Date.now(), returnWindow = '60s', captureFirst = false, isReload = false, refreshSession = null } = {}) {
   const live = snippets.filter(snippet => snippet && snippet.deletedAt == null);
 
-  if (isReload && refreshSession?.screen === 'editor') {
+  const canResume = refreshSession?.screen === 'editor' && (
+    isReload || (
+      Number.isFinite(refreshSession.activeAt) &&
+      now - refreshSession.activeAt <= (RETURN_WINDOWS[returnWindow] ?? RETURN_WINDOWS['60s'])
+    )
+  );
+  if (canResume) {
     if (refreshSession.snippetId == null) return { type: 'blank' };
     const resumed = live.find(snippet => snippet.id === refreshSession.snippetId);
     if (resumed) return { type: 'snippet', id: resumed.id };

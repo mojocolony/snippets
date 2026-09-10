@@ -1,21 +1,26 @@
 export const REFRESH_EDITOR_SESSION_KEY = 'snippets.refreshEditor.v1';
 
-export function readRefreshEditorSession(storage) {
+export function readRefreshEditorSession(storage, fallbackActiveAt = null) {
   try {
     const raw = storage?.getItem?.(REFRESH_EDITOR_SESSION_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw);
     if (value?.screen !== 'editor') return null;
     if (value.snippetId != null && typeof value.snippetId !== 'string') return null;
-    return { screen: 'editor', snippetId: value.snippetId ?? null };
+    const result = { screen: 'editor', snippetId: value.snippetId ?? null };
+    if (Number.isFinite(value.activeAt)) result.activeAt = Number(value.activeAt);
+    else if (Number.isFinite(fallbackActiveAt)) result.activeAt = Number(fallbackActiveAt);
+    return result;
   } catch {
     return null;
   }
 }
 
-export function writeRefreshEditorSession(storage, snippetId = null) {
+export function writeRefreshEditorSession(storage, snippetId = null, activeAt = null) {
   try {
-    storage?.setItem?.(REFRESH_EDITOR_SESSION_KEY, JSON.stringify({ screen: 'editor', snippetId: snippetId ?? null }));
+    const value = { screen: 'editor', snippetId: snippetId ?? null };
+    if (Number.isFinite(activeAt)) value.activeAt = Number(activeAt);
+    storage?.setItem?.(REFRESH_EDITOR_SESSION_KEY, JSON.stringify(value));
   } catch {
     // Session storage may be unavailable; launch policy still works normally.
   }

@@ -224,3 +224,11 @@ Create a public repository named `snippets` under `mojocolony`, place these repo
 - Refreshing Snippets now reopens the exact snippet that was on screen instead of re-running the normal most-recently-edited launch choice.
 - A genuine fresh launch still follows the existing pinned-snippet and return-window rules.
 - Blank capture is also preserved across a page reload.
+
+## Revision 4.26 — v0.4.26
+
+- Fixes resume routing in installed PWAs by no longer depending on the browser classifying startup as a literal reload.
+- Stores the exact active editor target synchronously in both session storage and persistent local storage, with an activity timestamp.
+- Refreshing or reopening Snippets within the configured return window resumes the exact snippet that was actually open, even if another snippet is pinned or has a newer `updatedAt` timestamp.
+- A stale resume record falls back to the normal launch rules; existing v0.4.25 session records are migrated on first load.
+- Carries forward the approved light-grey (`#E5E7EB`) / black Lucide Notebook Pen install icons.

@@ -82,19 +82,18 @@ import { readFile } from 'node:fs/promises';
 
 const appSource = await readFile(new URL('../../src/app.js', import.meta.url), 'utf8');
 
-test('the app records the current editor session, clears it when leaving, and only resumes it on reload', () => {
+test('the app still records and clears the current editor session after later resume fixes', () => {
   assert.match(appSource, /from ['"]\.\/domain\/refreshSession\.js['"]/);
-  assert.match(appSource, /writeRefreshEditorSession\(sessionStorageRef,\s*state\.currentSnippet\?\.id\s*\?\?\s*null\)/);
+  assert.match(appSource, /function touchRefreshEditorSession\(/);
+  assert.match(appSource, /writeRefreshEditorSession\(sessionStorageRef,/);
   assert.match(appSource, /clearRefreshEditorSession\(sessionStorageRef\)/);
-  assert.match(appSource, /const isReload = isReloadNavigation\(performance\)/);
-  assert.match(appSource, /refreshSession:\s*isReload\s*\?\s*readRefreshEditorSession\(sessionStorageRef\)\s*:\s*null/);
 });
 
-test('creating a snippet from a blank editor updates the refresh session to the new saved id', () => {
+test('creating a snippet from a blank editor updates the saved editor session to the new id', () => {
   const createAt = appSource.indexOf('state.currentSnippet = await createSnippet(markdown)');
   assert.ok(createAt >= 0);
   const nearby = appSource.slice(createAt, createAt + 500);
-  assert.match(nearby, /writeRefreshEditorSession\(sessionStorageRef,\s*state\.currentSnippet\?\.id\s*\?\?\s*null\)/);
+  assert.match(nearby, /touchRefreshEditorSession\(\)/);
 });
 
 const packageJson = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -102,10 +101,12 @@ const packageLock = JSON.parse(await readFile(new URL('../../package-lock.json',
 const versionSource = await readFile(new URL('../../src/version.js', import.meta.url), 'utf8');
 const swSource = await readFile(new URL('../../sw.js', import.meta.url), 'utf8');
 
-test('v0.4.25 publishes matching app, package and PWA cache versions', () => {
-  assert.equal(packageJson.version, '0.4.25');
-  assert.equal(packageLock.version, '0.4.25');
-  assert.equal(packageLock.packages[''].version, '0.4.25');
-  assert.match(versionSource, /APP_VERSION\s*=\s*['"]0\.4\.25['"]/);
-  assert.match(swSource, /snippets-r4-25/);
+test('v0.4.25 or later keeps matching app, package and PWA cache versions', () => {
+  const match = packageJson.version.match(/^0\.4\.(\d+)$/);
+  assert.ok(match && Number(match[1]) >= 25);
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.match(versionSource, new RegExp(`APP_VERSION\\s*=\\s*['"]${packageJson.version.replaceAll('.', '\\.') }['"]`));
+  const patch = packageJson.version.split('.').at(-1);
+  assert.match(swSource, new RegExp(`snippets-r4-${patch}`));
 });
